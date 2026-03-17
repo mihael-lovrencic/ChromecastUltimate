@@ -9,6 +9,8 @@ on:
 jobs:
   build:
     runs-on: ubuntu-latest
+    outputs:
+      version: ${{ steps.version.outputs.VERSION_NAME }}
     steps:
       - uses: actions/checkout@v4
 
@@ -21,12 +23,16 @@ jobs:
 
       - uses: gradle-build-action@v2
         with:
-          arguments: test assembleDebug
+          arguments: test assembleDebug assembleRelease
+
+      - name: Get version
+        id: version
+        run: echo "VERSION_NAME=1.0.0" >> $GITHUB_OUTPUT
 
       - uses: actions/upload-artifact@v3
         with:
-          name: app-debug.apk
-          path: app/build/outputs/apk/debug/app-debug.apk
+          name: app-release.apk
+          path: app/build/outputs/apk/release/app-release.apk
 
   release:
     needs: build
@@ -35,19 +41,14 @@ jobs:
     steps:
       - uses: actions/checkout@v4
 
-      - uses: actions/setup-java@v4
+      - uses: actions/download-artifact@v3
         with:
-          java-version: '17'
-          distribution: 'temurin'
-
-      - uses: gradle-build-action@v2
-        with:
-          arguments: assembleRelease
+          name: app-release.apk
 
       - name: Create Release
         uses: softprops/action-gh-release@v1
         with:
-          files: app/build/outputs/apk/release/app-release.apk
-          tag_name: v1.0.0
+          files: app-release.apk
+          tag_name: v${{ needs.build.outputs.version }}
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
