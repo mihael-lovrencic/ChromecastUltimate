@@ -16,8 +16,8 @@ android {
         applicationId "com.example.castultimate"
         def overrideVersionCode = project.findProperty("versionCodeOverride")?.toInteger()
         def overrideVersionName = project.findProperty("versionNameOverride")
-        versionCode overrideVersionCode ?: 2
-        versionName overrideVersionName ?: "1.0.1"
+        versionCode overrideVersionCode ?: 1
+        versionName overrideVersionName ?: "1.0.0"
         minSdk 24
         targetSdk 35
         
