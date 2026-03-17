@@ -12,10 +12,10 @@ Android app for Chromecast device discovery and screen mirroring.
 
 ## Requirements
 
-- Android SDK 34
+- Android SDK 35
 - Android Studio Arctic Fox or higher
-- JDK 17+
-- Gradle 8.5
+- JDK 21+
+- Gradle 8.9 (wrapper)
 
 ## Setup
 
@@ -105,17 +105,25 @@ ChromecastUltimate/
 
 ## CI/CD
 
-GitHub Actions workflow runs on every push to `main` branch:
-- Runs unit tests
-- Builds debug APK
-- Creates GitHub release with APK
+GitHub Actions workflow runs on every push and PR to `main`:
+- Builds dev (debug) and production (release) APKs
+- Uploads build artifacts
+- On `main` push, creates a GitHub release and attaches APKs
+
+### Release Signing (GitHub Actions)
+To auto-sign the production APK in CI, add these repository secrets:
+
+- `ANDROID_KEYSTORE_BASE64` (base64-encoded `.jks`)
+- `ANDROID_KEYSTORE_PASSWORD`
+- `ANDROID_KEY_ALIAS`
+- `ANDROID_KEY_PASSWORD`
 
 ## Tech Stack
 
-- Kotlin 2.0.0
-- Android SDK 34
-- Google Play Services Cast Framework 21.2.0
-- AndroidX AppCompat 1.6.1
+- Kotlin 2.0.21
+- Android SDK 35
+- Google Play Services Cast Framework 22.1.0
+- AndroidX AppCompat 1.7.0
 - NanoHTTPD 2.3.1
 
 ## License
