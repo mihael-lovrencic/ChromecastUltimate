@@ -6,6 +6,9 @@ import androidx.mediarouter.media.MediaRouteSelector
 import androidx.mediarouter.media.MediaRouter
 import com.google.android.gms.cast.CastDevice
 import com.google.android.gms.cast.CastMediaControlIntent
+import com.google.android.gms.cast.MediaInfo
+import com.google.android.gms.cast.MediaLoadOptions
+import com.google.android.gms.cast.MediaTrack
 import com.google.android.gms.cast.framework.CastContext
 import com.google.android.gms.cast.framework.CastSession
 import com.google.android.gms.cast.framework.SessionManager
@@ -157,6 +160,52 @@ object CastManager : SessionManagerListener<CastSession> {
         }
     }
 
+    @Suppress("DEPRECATION")
+    fun castVideoWithSubtitle(
+        url: String,
+        subtitleUrl: String,
+        subtitleLanguage: String = "en",
+        subtitleName: String = "Subtitles",
+        title: String = "Video",
+        description: String = ""
+    ) {
+        if (currentSession == null) {
+            Log.w(TAG, "No active session to cast video")
+            return
+        }
+
+        val session = currentSession ?: return
+        val remoteMediaClient = session.remoteMediaClient
+        if (remoteMediaClient != null) {
+            val trackId = 1L
+            val textTrack = MediaTrack.Builder(trackId, MediaTrack.TYPE_TEXT)
+                .setContentId(subtitleUrl)
+                .setSubtype(MediaTrack.SUBTYPE_SUBTITLES)
+                .setLanguage(subtitleLanguage)
+                .setName(subtitleName)
+                .build()
+
+            val mediaInfo = MediaInfo.Builder(url)
+                .setStreamType(MediaInfo.STREAM_TYPE_BUFFERED)
+                .setContentType("video/mp4")
+                .setMetadata(com.google.android.gms.cast.MediaMetadata(com.google.android.gms.cast.MediaMetadata.MEDIA_TYPE_MOVIE).apply {
+                    putString(com.google.android.gms.cast.MediaMetadata.KEY_TITLE, title)
+                    putString(com.google.android.gms.cast.MediaMetadata.KEY_SUBTITLE, description)
+                })
+                .setMediaTracks(listOf(textTrack))
+                .build()
+
+            val options = MediaLoadOptions.Builder()
+                .setAutoplay(true)
+                .setPlayPosition(0)
+                .setActiveTrackIds(longArrayOf(trackId))
+                .build()
+
+            remoteMediaClient.load(mediaInfo, options)
+            Log.d(TAG, "Casting video with subtitles: $url")
+        }
+    }
+
     fun castVideoStream(url: String, title: String = "Stream") {
         castVideo(url, title)
     }
@@ -189,7 +238,41 @@ object CastManager : SessionManagerListener<CastSession> {
 
     fun getDurationMs(): Long {
         val remote = currentSession?.remoteMediaClient ?: return 0L
-        return remote.mediaStatus?.mediaInformation?.streamDuration ?: 0L
+        return remote.mediaStatus?.mediaInfo?.streamDuration ?: 0L
+    }
+
+    @Suppress("DEPRECATION")
+    fun applySubtitle(subtitleUrl: String, language: String = "en", name: String = "Subtitles"): Boolean {
+        val session = currentSession ?: return false
+        val remoteMediaClient = session.remoteMediaClient ?: return false
+        val status = remoteMediaClient.mediaStatus ?: return false
+        val currentMedia = status.mediaInfo ?: return false
+
+        val existingTracks = (currentMedia.mediaTracks as? List<MediaTrack>)
+            ?.filter { it.type != MediaTrack.TYPE_TEXT }
+            ?.toMutableList()
+            ?: mutableListOf()
+
+        val newTrackId = (existingTracks.map { it.id }.maxOrNull() ?: 0L) + 1
+        val textTrack = MediaTrack.Builder(newTrackId, MediaTrack.TYPE_TEXT)
+            .setContentId(subtitleUrl)
+            .setSubtype(MediaTrack.SUBTYPE_SUBTITLES)
+            .setLanguage(language)
+            .setName(name)
+            .build()
+
+        existingTracks.add(textTrack)
+
+        val newMediaInfo = MediaInfo.Builder(currentMedia.contentId)
+            .setStreamType(currentMedia.streamType)
+            .setContentType(currentMedia.contentType)
+            .setMetadata(currentMedia.metadata)
+            .setMediaTracks(existingTracks)
+            .build()
+
+        remoteMediaClient.load(newMediaInfo, true, status.streamPosition)
+        remoteMediaClient.setActiveMediaTracks(longArrayOf(newTrackId))
+        return true
     }
 
     fun endSession() {

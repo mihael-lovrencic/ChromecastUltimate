@@ -5,6 +5,7 @@ import fi.iki.elonen.NanoHTTPD
 import org.json.JSONArray
 import org.json.JSONObject
 import java.net.URL
+import java.util.UUID
 
 class CastServer(
     port: Int = 5000,
@@ -13,6 +14,8 @@ class CastServer(
 
     private val TAG = "CastServer"
     private val ALLOWED_ACTIONS = setOf("play", "pause", "stop", "seek", "toggleplaypause")
+    private val subtitles = mutableMapOf<String, SubtitleEntry>()
+    private var latestSubtitleId: String? = null
     
     companion object {
         private const val MIME_JSON = "application/json"
@@ -36,6 +39,7 @@ class CastServer(
                 uri == "/seek" && method == Method.POST -> handleSeek(session)
                 uri == "/volume" && method == Method.POST -> handleVolume(session)
                 uri == "/subtitle" && method == Method.POST -> handleSubtitle(session)
+                uri.startsWith("/subtitle/") && method == Method.GET -> handleSubtitleGet(uri)
                 uri == "/mirror" && method == Method.POST -> handleMirror(session)
                 uri == "/status" && (method == Method.GET || method == Method.HEAD) -> handleStatus(method == Method.HEAD)
                 else -> newFixedLengthResponse(Response.Status.NOT_FOUND, MIME_JSON, "{\"error\":\"Not found\"}")
@@ -102,7 +106,14 @@ class CastServer(
                 return newFixedLengthResponse(Response.Status.CONFLICT, MIME_JSON, "{\"error\":\"No active Chromecast session\"}")
             }
 
-            CastManager.castVideo(videoUrl)
+            val subtitleId = latestSubtitleId
+            val subtitleEntry = subtitleId?.let { subtitles[it] }
+            if (subtitleId != null && subtitleEntry != null) {
+                val subtitleUrl = "${getBaseUrl(session)}/subtitle/$subtitleId"
+                CastManager.castVideoWithSubtitle(videoUrl, subtitleUrl, subtitleEntry.language, subtitleEntry.label)
+            } else {
+                CastManager.castVideo(videoUrl)
+            }
             Log.d(TAG, "Casting: $videoUrl")
             
             val result = JSONObject().put("success", true).put("message", "Casting started")
@@ -117,7 +128,7 @@ class CastServer(
         for (key in keys) {
             val paramValue = session.parameters[key]?.firstOrNull()
             if (!paramValue.isNullOrBlank()) return paramValue
-            val jsonValue = bodyJson?.optString(key, null)
+            val jsonValue = bodyJson?.optString(key, "")
             if (!jsonValue.isNullOrBlank()) return jsonValue
         }
         return null
@@ -144,6 +155,11 @@ class CastServer(
         } catch (_: Exception) {
             null
         }
+    }
+
+    private fun getBaseUrl(session: IHTTPSession): String {
+        val host = session.headers["host"] ?: "localhost:5000"
+        return "http://$host"
     }
 
     private fun isValidUrl(url: String): Boolean {
@@ -241,12 +257,43 @@ class CastServer(
 
     private fun handleSubtitle(session: IHTTPSession): Response {
         return try {
-            val result = JSONObject().put("success", true).put("message", "Subtitle loaded")
+            val bodyJson = parseJsonBody(session)
+            val content = extractString(session, bodyJson, "content")
+            val filename = extractString(session, bodyJson, "filename", "name")
+            val format = extractString(session, bodyJson, "format")
+
+            if (content.isNullOrBlank()) {
+                return newFixedLengthResponse(Response.Status.BAD_REQUEST, MIME_JSON, "{\"error\":\"Missing subtitle content\"}")
+            }
+
+            val normalized = normalizeSubtitle(content, filename, format)
+            val id = UUID.randomUUID().toString()
+            subtitles.clear()
+            subtitles[id] = normalized
+            latestSubtitleId = id
+
+            val subtitleUrl = "${getBaseUrl(session)}/subtitle/$id"
+            val applied = if (CastManager.isConnected()) {
+                CastManager.applySubtitle(subtitleUrl, normalized.language, normalized.label)
+            } else {
+                false
+            }
+
+            val result = JSONObject()
+                .put("success", true)
+                .put("message", if (applied) "Subtitle applied" else "Subtitle queued for next cast")
+                .put("url", subtitleUrl)
             newFixedLengthResponse(Response.Status.OK, MIME_JSON, result.toString())
         } catch (e: Exception) {
             Log.e(TAG, "Error loading subtitle", e)
             newFixedLengthResponse(Response.Status.INTERNAL_ERROR, MIME_JSON, "{\"error\":\"Subtitle failed\"}")
         }
+    }
+
+    private fun handleSubtitleGet(uri: String): Response {
+        val id = uri.removePrefix("/subtitle/").trim()
+        val entry = subtitles[id] ?: return newFixedLengthResponse(Response.Status.NOT_FOUND, MIME_JSON, "{\"error\":\"Subtitle not found\"}")
+        return newFixedLengthResponse(Response.Status.OK, entry.mimeType, entry.content)
     }
 
     private fun handleMirror(session: IHTTPSession): Response {
@@ -279,5 +326,50 @@ class CastServer(
             Log.e(TAG, "Error getting status", e)
             newFixedLengthResponse(Response.Status.INTERNAL_ERROR, MIME_JSON, "{\"error\":\"Status failed\"}")
         }
+    }
+
+    private data class SubtitleEntry(
+        val content: String,
+        val mimeType: String,
+        val language: String,
+        val label: String
+    )
+
+    private fun normalizeSubtitle(content: String, filename: String?, format: String?): SubtitleEntry {
+        val trimmed = content.trimStart()
+        val lowerName = filename?.lowercase() ?: ""
+        val lowerFormat = format?.lowercase() ?: ""
+
+        return if (trimmed.startsWith("WEBVTT")) {
+            SubtitleEntry(content = content, mimeType = "text/vtt", language = "en", label = "Subtitles")
+        } else if (lowerFormat == "vtt" || lowerName.endsWith(".vtt")) {
+            SubtitleEntry(content = "WEBVTT\n\n$content".trim(), mimeType = "text/vtt", language = "en", label = "Subtitles")
+        } else {
+            val vtt = srtToVtt(content)
+            SubtitleEntry(content = vtt, mimeType = "text/vtt", language = "en", label = "Subtitles")
+        }
+    }
+
+    private fun srtToVtt(srt: String): String {
+        val lines = srt.replace("\r\n", "\n").replace("\r", "\n").split("\n")
+        val out = StringBuilder()
+        out.append("WEBVTT\n\n")
+        for (line in lines) {
+            val trimmed = line.trim()
+            if (trimmed.isEmpty()) {
+                out.append("\n")
+                continue
+            }
+            if (trimmed.matches(Regex("\\d+"))) {
+                continue
+            }
+            if (trimmed.contains("-->")) {
+                out.append(trimmed.replace(",", "."))
+            } else {
+                out.append(line)
+            }
+            out.append("\n")
+        }
+        return out.toString()
     }
 }
