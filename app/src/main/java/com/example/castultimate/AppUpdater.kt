@@ -56,7 +56,7 @@ object AppUpdater {
                     
                     val rawTag = json.optString("tag_name", "").removePrefix("v")
                     val parsedTag = parseVersionTag(rawTag)
-                    val latestVersion = parsedTag.name
+                    val latestVersion = parsedTag.display
                     val downloadUrl = getApkDownloadUrl(json)
                     val releaseNotes = json.optString("body", "")
                     val latestVersionCode = parsedTag.code ?: latestVersion.toLongOrNull()
@@ -110,19 +110,20 @@ object AppUpdater {
         }
     }
 
-    private data class ParsedTag(val name: String, val code: Long?)
+    private data class ParsedTag(val name: String, val code: Long?, val display: String)
 
     private fun parseVersionTag(rawTag: String): ParsedTag {
         // Support tags like "1.2.3+45" where +45 is versionCode
         val parts = rawTag.split("+", limit = 2)
         val name = parts.firstOrNull().orEmpty()
         val code = parts.getOrNull(1)?.toLongOrNull()
-        return ParsedTag(name, code)
+        val display = if (code != null) "$name+$code" else name
+        return ParsedTag(name, code, display)
     }
 
     private fun formatInstalledVersion(installed: InstalledVersion): String {
         return if (installed.code > 0) {
-            "${installed.name} (${installed.code})"
+            "${installed.name}+${installed.code}"
         } else {
             installed.name
         }
