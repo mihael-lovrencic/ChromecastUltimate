@@ -17,10 +17,13 @@ jobs:
           java-version: '17'
           distribution: 'temurin'
 
-      - uses: gradle/wrapper-validation-action@v1
+      - name: Download and extract Gradle
+        run: |
+          curl -sL https://services.gradle.org/distributions/gradle-8.5-bin.zip -o gradle.zip
+          unzip -q gradle.zip
 
       - name: Build with Gradle
-        run: ./gradlew test assembleDebug
+        run: ./gradle-8.5/bin/gradle test assembleDebug
 
       - uses: actions/upload-artifact@v4
         with:
@@ -30,6 +33,7 @@ jobs:
   release:
     needs: build
     runs-on: ubuntu-latest
+    if: github.event_name == 'push' && github.ref == 'refs/heads/main'
     steps:
       - uses: actions/checkout@v4
 
@@ -38,8 +42,13 @@ jobs:
           java-version: '17'
           distribution: 'temurin'
 
+      - name: Download and extract Gradle
+        run: |
+          curl -sL https://services.gradle.org/distributions/gradle-8.5-bin.zip -o gradle.zip
+          unzip -q gradle.zip
+
       - name: Build Release
-        run: ./gradlew assembleRelease
+        run: ./gradle-8.5/bin/gradle assembleRelease
 
       - name: Create Release
         uses: softprops/action-gh-release@v2
