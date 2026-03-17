@@ -18,6 +18,8 @@ object AppUpdater {
 
     private var updateListener: UpdateListener? = null
 
+    private data class InstalledVersion(val name: String, val code: Long)
+
     interface UpdateListener {
         fun onUpdateAvailable(version: String, downloadUrl: String, releaseNotes: String?)
         fun onUpdateNotAvailable(currentVersion: String)
@@ -28,10 +30,15 @@ object AppUpdater {
         updateListener = listener
     }
 
+    fun getInstalledVersionDisplay(context: Context): String {
+        val installed = getInstalledVersion(context)
+        return formatInstalledVersion(installed)
+    }
+
     fun checkForUpdate(context: Context) {
         CoroutineScope(Dispatchers.IO).launch {
             try {
-                val currentVersion = getCurrentVersion(context)
+                val installed = getInstalledVersion(context)
                 
                 val url = URL(GITHUB_API_URL)
                 val connection = url.openConnection() as HttpURLConnection
@@ -50,12 +57,19 @@ object AppUpdater {
                     val latestVersion = json.optString("tag_name", "").removePrefix("v")
                     val downloadUrl = getApkDownloadUrl(json)
                     val releaseNotes = json.optString("body", "")
+                    val latestVersionCode = latestVersion.toLongOrNull()
                     
                     withContext(Dispatchers.Main) {
-                        if (isNewerVersion(latestVersion, currentVersion)) {
+                        val isUpdateAvailable = if (latestVersionCode != null && installed.code > 0) {
+                            latestVersionCode > installed.code
+                        } else {
+                            isNewerVersion(latestVersion, installed.name)
+                        }
+
+                        if (isUpdateAvailable) {
                             updateListener?.onUpdateAvailable(latestVersion, downloadUrl, releaseNotes)
                         } else {
-                            updateListener?.onUpdateNotAvailable(currentVersion)
+                            updateListener?.onUpdateNotAvailable(formatInstalledVersion(installed))
                         }
                     }
                 } else {
@@ -73,7 +87,7 @@ object AppUpdater {
         }
     }
 
-    private fun getCurrentVersion(context: Context): String {
+    private fun getInstalledVersion(context: Context): InstalledVersion {
         return try {
             val packageInfo = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
                 context.packageManager.getPackageInfo(context.packageName, PackageManager.PackageInfoFlags.of(0))
@@ -81,9 +95,24 @@ object AppUpdater {
                 @Suppress("DEPRECATION")
                 context.packageManager.getPackageInfo(context.packageName, 0)
             }
-            packageInfo.versionName ?: "1.0.0"
+            val name = packageInfo.versionName ?: "1.0.0"
+            val code = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.P) {
+                packageInfo.longVersionCode
+            } else {
+                @Suppress("DEPRECATION")
+                packageInfo.versionCode.toLong()
+            }
+            InstalledVersion(name, code)
         } catch (e: Exception) {
-            "1.0.0"
+            InstalledVersion("1.0.0", 0L)
+        }
+    }
+
+    private fun formatInstalledVersion(installed: InstalledVersion): String {
+        return if (installed.code > 0) {
+            "${installed.name} (${installed.code})"
+        } else {
+            installed.name
         }
     }
 

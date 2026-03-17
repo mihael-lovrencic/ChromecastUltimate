@@ -46,8 +46,8 @@ class MainActivity : AppCompatActivity(),
         serverStatusIndicator = findViewById(R.id.serverStatusIndicator)
         versionText = findViewById(R.id.versionText)
 
-        val versionName = packageManager.getPackageInfo(packageName, 0).versionName
-        versionText.text = "v$versionName"
+        val installedVersion = AppUpdater.getInstalledVersionDisplay(this)
+        versionText.text = "v$installedVersion"
 
         CastManager.initialize(this)
         CastManager.setDiscoveryListener(this)
