@@ -115,8 +115,8 @@ jobs:
         with:
           files: |
             **/*.apk
-          tag_name: v${{ needs.build.outputs.version_name }}+${{ needs.build.outputs.version_code }}
-          name: Release v${{ needs.build.outputs.version_name }}+${{ needs.build.outputs.version_code }}
+          tag_name: v${{ needs.build.outputs.version_name }}
+          name: Release v${{ needs.build.outputs.version_name }}
           overwrite_files: true
           draft: false
         env:
