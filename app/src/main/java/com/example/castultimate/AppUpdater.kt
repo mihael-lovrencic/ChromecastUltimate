@@ -54,10 +54,12 @@ object AppUpdater {
                     val response = connection.inputStream.bufferedReader().readText()
                     val json = JSONObject(response)
                     
-                    val latestVersion = json.optString("tag_name", "").removePrefix("v")
+                    val rawTag = json.optString("tag_name", "").removePrefix("v")
+                    val parsedTag = parseVersionTag(rawTag)
+                    val latestVersion = parsedTag.name
                     val downloadUrl = getApkDownloadUrl(json)
                     val releaseNotes = json.optString("body", "")
-                    val latestVersionCode = latestVersion.toLongOrNull()
+                    val latestVersionCode = parsedTag.code ?: latestVersion.toLongOrNull()
                     
                     withContext(Dispatchers.Main) {
                         val isUpdateAvailable = if (latestVersionCode != null && installed.code > 0) {
@@ -106,6 +108,16 @@ object AppUpdater {
         } catch (e: Exception) {
             InstalledVersion("1.0.0", 0L)
         }
+    }
+
+    private data class ParsedTag(val name: String, val code: Long?)
+
+    private fun parseVersionTag(rawTag: String): ParsedTag {
+        // Support tags like "1.2.3+45" where +45 is versionCode
+        val parts = rawTag.split("+", limit = 2)
+        val name = parts.firstOrNull().orEmpty()
+        val code = parts.getOrNull(1)?.toLongOrNull()
+        return ParsedTag(name, code)
     }
 
     private fun formatInstalledVersion(installed: InstalledVersion): String {
