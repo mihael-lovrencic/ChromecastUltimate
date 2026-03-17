@@ -5,6 +5,7 @@ import android.content.SharedPreferences
 import android.graphics.drawable.GradientDrawable
 import android.os.Bundle
 import android.os.Build
+import android.location.LocationManager
 import android.view.View
 import android.widget.TextView
 import android.widget.Toast
@@ -83,6 +84,10 @@ class MainActivity : AppCompatActivity(),
         castButton.setOnClickListener {
             if (!ensureDiscoveryPermissions()) {
                 updateStatus("Grant Nearby Devices permission to discover Cast devices")
+                return@setOnClickListener
+            }
+            if (!isLocationEnabled()) {
+                updateStatus("Enable Location Services to discover Cast devices")
                 return@setOnClickListener
             }
             val playServicesStatus = GoogleApiAvailability.getInstance().isGooglePlayServicesAvailable(this)
@@ -258,7 +263,10 @@ class MainActivity : AppCompatActivity(),
         if (hasDiscoveryPermission()) return true
 
         val perms = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
-            arrayOf(android.Manifest.permission.NEARBY_WIFI_DEVICES)
+            arrayOf(
+                android.Manifest.permission.NEARBY_WIFI_DEVICES,
+                android.Manifest.permission.ACCESS_FINE_LOCATION
+            )
         } else {
             arrayOf(android.Manifest.permission.ACCESS_FINE_LOCATION)
         }
@@ -268,17 +276,24 @@ class MainActivity : AppCompatActivity(),
     }
 
     private fun hasDiscoveryPermission(): Boolean {
-        return if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
+        val nearbyGranted = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
             ContextCompat.checkSelfPermission(
                 this,
                 android.Manifest.permission.NEARBY_WIFI_DEVICES
             ) == android.content.pm.PackageManager.PERMISSION_GRANTED
         } else {
-            ContextCompat.checkSelfPermission(
-                this,
-                android.Manifest.permission.ACCESS_FINE_LOCATION
-            ) == android.content.pm.PackageManager.PERMISSION_GRANTED
+            true
         }
+        val locationGranted = ContextCompat.checkSelfPermission(
+            this,
+            android.Manifest.permission.ACCESS_FINE_LOCATION
+        ) == android.content.pm.PackageManager.PERMISSION_GRANTED
+        return nearbyGranted && locationGranted
+    }
+
+    private fun isLocationEnabled(): Boolean {
+        val manager = getSystemService(LOCATION_SERVICE) as LocationManager
+        return manager.isLocationEnabled
     }
 
     override fun onDeviceDiscovered(deviceName: String) {

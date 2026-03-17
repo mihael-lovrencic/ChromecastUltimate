@@ -129,6 +129,7 @@ object CastManager : SessionManagerListener<CastSession> {
         discoveryListener?.onDiscoveryStarted()
         val router = mediaRouter
         val selector = routeSelector
+        Log.d(TAG, "startDiscovery called; router=${router != null}, selector=${selector != null}")
         if (router != null && selector != null) {
             router.addCallback(
                 selector,
