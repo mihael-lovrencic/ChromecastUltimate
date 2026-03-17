@@ -72,8 +72,8 @@ jobs:
       - name: Read Version Info
         if: github.event_name == 'push' && github.ref == 'refs/heads/main'
         run: |
-          VERSION_NAME=$(./gradlew -q printVersionName)
-          VERSION_CODE=$(./gradlew -q printVersionCode)
+          VERSION_NAME=$(./gradlew -q printVersionName --no-configuration-cache)
+          VERSION_CODE=$(./gradlew -q printVersionCode --no-configuration-cache)
           echo "VERSION_NAME=$VERSION_NAME" >> $GITHUB_ENV
           echo "VERSION_CODE=$VERSION_CODE" >> $GITHUB_ENV
 
