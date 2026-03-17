@@ -62,6 +62,7 @@ object CastManager : SessionManagerListener<CastSession> {
         Log.d(TAG, "Discovery stopped")
     }
 
+    @Suppress("DEPRECATION")
     fun castVideo(url: String, title: String = "Video", description: String = "") {
         if (currentSession == null) {
             Log.w(TAG, "No active session to cast video")
@@ -89,6 +90,7 @@ object CastManager : SessionManagerListener<CastSession> {
         castVideo(url, title)
     }
 
+    @Suppress("DEPRECATION")
     fun control(action: String, position: Long = 0) {
         val session = currentSession ?: return
         val remoteMediaClient = session.remoteMediaClient

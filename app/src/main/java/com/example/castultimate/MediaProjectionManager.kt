@@ -129,7 +129,9 @@ object MediaProjectionManager {
     private fun startCapture(context: Context) {
         val metrics = DisplayMetrics()
         val windowManager = context.getSystemService(Context.WINDOW_SERVICE) as android.view.WindowManager
-        windowManager.defaultDisplay.getRealMetrics(metrics)
+        @Suppress("DEPRECATION")
+        val display = windowManager.defaultDisplay
+        display.getRealMetrics(metrics)
 
         val density = metrics.densityDpi
 
