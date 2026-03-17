@@ -1,7 +1,7 @@
 package com.example.castultimate
 
 import android.content.Context
-import com.google.android.gms.cast.CastOptions
+import com.google.android.gms.cast.framework.CastOptions
 import com.google.android.gms.cast.framework.OptionsProvider
 import com.google.android.gms.cast.framework.SessionProvider
 
