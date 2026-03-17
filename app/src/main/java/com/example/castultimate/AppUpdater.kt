@@ -63,7 +63,7 @@ object AppUpdater {
                         val isUpdateAvailable = if (latestVersionCode != null && installed.code > 0) {
                             latestVersionCode > installed.code
                         } else {
-                            isNewerVersion(latestVersion, installed.name)
+                            Versioning.compareVersions(latestVersion, installed.name) > 0
                         }
 
                         if (isUpdateAvailable) {
@@ -130,17 +130,4 @@ object AppUpdater {
         return GITHUB_RELEASES_URL
     }
 
-    private fun isNewerVersion(latestVersion: String, currentVersion: String): Boolean {
-        val latest = latestVersion.split(".").mapNotNull { it.toIntOrNull() }
-        val current = currentVersion.split(".").mapNotNull { it.toIntOrNull() }
-
-        for (i in 0 until maxOf(latest.size, current.size)) {
-            val latestPart = latest.getOrElse(i) { 0 }
-            val currentPart = current.getOrElse(i) { 0 }
-            
-            if (latestPart > currentPart) return true
-            if (latestPart < currentPart) return false
-        }
-        return false
-    }
 }
