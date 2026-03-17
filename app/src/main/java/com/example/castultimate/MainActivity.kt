@@ -12,6 +12,8 @@ import androidx.core.app.ActivityCompat
 import androidx.core.content.ContextCompat
 import androidx.appcompat.app.AlertDialog
 import androidx.appcompat.app.AppCompatActivity
+import com.google.android.gms.common.ConnectionResult
+import com.google.android.gms.common.GoogleApiAvailability
 import com.google.android.material.slider.Slider
 import com.google.android.material.appbar.MaterialToolbar
 import com.google.android.material.button.MaterialButton
@@ -80,6 +82,12 @@ class MainActivity : AppCompatActivity(),
                 updateStatus("Grant Nearby Devices permission to discover Cast devices")
                 return@setOnClickListener
             }
+            val playServicesStatus = GoogleApiAvailability.getInstance().isGooglePlayServicesAvailable(this)
+            if (playServicesStatus != ConnectionResult.SUCCESS) {
+                updateStatus("Google Play services missing or outdated (code: $playServicesStatus)")
+                return@setOnClickListener
+            }
+
             val started = CastManager.startDiscovery(this)
             if (started) {
                 updateStatus("Searching for Chromecast devices...")

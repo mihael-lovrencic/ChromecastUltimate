@@ -86,8 +86,14 @@ object CastManager : SessionManagerListener<CastSession> {
             Log.d(TAG, "CastManager initialized")
         } catch (e: Exception) {
             initialized = false
-            lastInitError = e.message ?: "Unknown initialization error"
+            val message = e.message ?: "No message"
+            lastInitError = "${e.javaClass.simpleName}: $message"
             Log.e(TAG, "Failed to initialize CastContext: ${lastInitError}", e)
+        } catch (t: Throwable) {
+            initialized = false
+            val message = t.message ?: "No message"
+            lastInitError = "${t.javaClass.simpleName}: $message"
+            Log.e(TAG, "Failed to initialize CastContext: ${lastInitError}", t)
         }
     }
 
