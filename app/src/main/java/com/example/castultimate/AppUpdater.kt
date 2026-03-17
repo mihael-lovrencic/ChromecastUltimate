@@ -21,7 +21,7 @@ object AppUpdater {
     interface UpdateListener {
         fun onUpdateAvailable(version: String, downloadUrl: String, releaseNotes: String?)
         fun onUpdateNotAvailable(currentVersion: String)
-        fun onError(error: String)
+        fun onUpdateError(error: String)
     }
 
     fun setUpdateListener(listener: UpdateListener?) {
@@ -60,14 +60,14 @@ object AppUpdater {
                     }
                 } else {
                     withContext(Dispatchers.Main) {
-                        updateListener?.onError("Failed to check for updates: $responseCode")
+                        updateListener?.onUpdateError("Failed to check for updates: $responseCode")
                     }
                 }
                 
                 connection.disconnect()
             } catch (e: Exception) {
                 withContext(Dispatchers.Main) {
-                    updateListener?.onError("Error checking for updates: ${e.message}")
+                    updateListener?.onUpdateError("Error checking for updates: ${e.message}")
                 }
             }
         }

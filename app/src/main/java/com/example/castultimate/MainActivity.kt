@@ -140,7 +140,7 @@ class MainActivity : AppCompatActivity(),
         updateStatus("App is up to date (v$currentVersion)")
     }
 
-    override fun onError(error: String) {
+    override fun onUpdateError(error: String) {
         updateStatus("Update check failed")
         Toast.makeText(this, error, Toast.LENGTH_SHORT).show()
     }
