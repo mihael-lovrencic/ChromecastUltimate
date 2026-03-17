@@ -72,8 +72,13 @@ jobs:
       - name: Read Version Info
         if: github.event_name == 'push' && github.ref == 'refs/heads/main'
         run: |
-          VERSION_NAME=$(./gradlew -q printVersionName --no-configuration-cache)
-          VERSION_CODE=$(./gradlew -q printVersionCode --no-configuration-cache)
+          set -euo pipefail
+          VERSION_NAME=$(./gradlew -q :printVersionName --no-configuration-cache --console=plain)
+          VERSION_CODE=$(./gradlew -q :printVersionCode --no-configuration-cache --console=plain)
+          if [ -z "$VERSION_NAME" ] || [ -z "$VERSION_CODE" ]; then
+            echo "Version info missing. VERSION_NAME='$VERSION_NAME' VERSION_CODE='$VERSION_CODE'"
+            exit 1
+          fi
           echo "VERSION_NAME=$VERSION_NAME" >> $GITHUB_ENV
           echo "VERSION_CODE=$VERSION_CODE" >> $GITHUB_ENV
 
