@@ -30,6 +30,8 @@ object CastManager : SessionManagerListener<CastSession> {
     private var contextRef: Context? = null
     private var mediaRouter: MediaRouter? = null
     private var routeSelector: MediaRouteSelector? = null
+    private var initialized = false
+    private var lastInitError: String? = null
     data class DeviceInfo(val id: String, val name: String)
 
     private val knownRoutes = mutableMapOf<String, MediaRouter.RouteInfo>()
@@ -79,11 +81,23 @@ object CastManager : SessionManagerListener<CastSession> {
             routeSelector = MediaRouteSelector.Builder()
                 .addControlCategory(CastMediaControlIntent.categoryForCast(CAST_APP_ID))
                 .build()
+            initialized = true
+            lastInitError = null
             Log.d(TAG, "CastManager initialized")
         } catch (e: Exception) {
-            Log.e(TAG, "Failed to initialize CastContext", e)
+            initialized = false
+            lastInitError = e.message ?: "Unknown initialization error"
+            Log.e(TAG, "Failed to initialize CastContext: ${lastInitError}", e)
         }
     }
+
+    fun ensureInitialized(context: Context): Boolean {
+        if (initialized) return true
+        initialize(context)
+        return initialized
+    }
+
+    fun getLastInitError(): String? = lastInitError
 
     fun setDiscoveryListener(listener: DiscoveryListener?) {
         this.discoveryListener = listener
@@ -91,6 +105,15 @@ object CastManager : SessionManagerListener<CastSession> {
 
     fun setSessionListener(listener: SessionListener?) {
         this.sessionListener = listener
+    }
+
+    fun startDiscovery(context: Context): Boolean {
+        if (!ensureInitialized(context)) {
+            Log.w(TAG, "CastManager not initialized; cannot start discovery")
+            return false
+        }
+        startDiscovery()
+        return true
     }
 
     fun startDiscovery() {

@@ -80,8 +80,13 @@ class MainActivity : AppCompatActivity(),
                 updateStatus("Grant Nearby Devices permission to discover Cast devices")
                 return@setOnClickListener
             }
-            CastManager.startDiscovery()
-            updateStatus("Searching for Chromecast devices...")
+            val started = CastManager.startDiscovery(this)
+            if (started) {
+                updateStatus("Searching for Chromecast devices...")
+            } else {
+                val error = CastManager.getLastInitError()
+                updateStatus(error ?: "Cast framework not available. Update Google Play Services.")
+            }
         }
 
         mirrorButton.setOnClickListener {
