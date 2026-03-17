@@ -122,11 +122,7 @@ object AppUpdater {
     }
 
     private fun formatInstalledVersion(installed: InstalledVersion): String {
-        return if (installed.code > 0) {
-            "${installed.name}+${installed.code}"
-        } else {
-            installed.name
-        }
+        return installed.name
     }
 
     private fun getApkDownloadUrl(json: JSONObject): String {
