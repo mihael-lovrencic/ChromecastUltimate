@@ -25,6 +25,9 @@ jobs:
       - name: Build Debug APK
         run: ./gradle-8.11/bin/gradle assembleDebug
 
+      - name: List files
+        run: ls -la app/build/outputs/apk/debug/
+
       - uses: actions/upload-artifact@v4
         with:
           name: app.apk
@@ -41,10 +44,14 @@ jobs:
         with:
           name: app.apk
 
+      - name: List files
+        run: ls -la
+
       - name: Create Release
         uses: softprops/action-gh-release@v2
         with:
-          files: app.apk
+          files: |
+            *.apk
           tag_name: v${{ github.run_number }}
           name: Release v${{ github.run_number }}
           overwrite: true
