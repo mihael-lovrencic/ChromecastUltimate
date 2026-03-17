@@ -35,6 +35,8 @@ class MainActivity : AppCompatActivity(),
     private lateinit var versionText: TextView
     private lateinit var discoveryLabel: TextView
     private lateinit var discoverySlider: Slider
+    private lateinit var deviceListText: TextView
+    private val discoveredDevices = linkedSetOf<String>()
     private lateinit var prefs: SharedPreferences
 
     private val PREFS_NAME = "cast_ultimate"
@@ -60,6 +62,7 @@ class MainActivity : AppCompatActivity(),
         versionText = findViewById(R.id.versionText)
         discoveryLabel = findViewById(R.id.discoveryLabel)
         discoverySlider = findViewById(R.id.discoverySlider)
+        deviceListText = findViewById(R.id.deviceListText)
         prefs = getSharedPreferences(PREFS_NAME, MODE_PRIVATE)
 
         val installedVersion = AppUpdater.getInstalledVersionDisplay(this)
@@ -280,18 +283,24 @@ class MainActivity : AppCompatActivity(),
 
     override fun onDeviceDiscovered(deviceName: String) {
         runOnUiThread {
+            discoveredDevices.add(deviceName)
+            updateDeviceList()
             updateStatus("Found: $deviceName")
         }
     }
 
     override fun onDeviceRemoved(deviceName: String) {
         runOnUiThread {
+            discoveredDevices.remove(deviceName)
+            updateDeviceList()
             updateStatus("Device removed: $deviceName")
         }
     }
 
     override fun onDiscoveryStarted() {
         runOnUiThread {
+            discoveredDevices.clear()
+            updateDeviceList()
             updateStatus("Discovery started...")
         }
     }
@@ -335,6 +344,14 @@ class MainActivity : AppCompatActivity(),
     override fun onError(error: String) {
         runOnUiThread {
             updateStatus("Error: $error")
+        }
+    }
+
+    private fun updateDeviceList() {
+        if (discoveredDevices.isEmpty()) {
+            deviceListText.text = "No devices yet"
+        } else {
+            deviceListText.text = discoveredDevices.joinToString(separator = "\n")
         }
     }
 
