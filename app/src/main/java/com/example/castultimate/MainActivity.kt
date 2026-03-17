@@ -1,6 +1,7 @@
 package com.example.castultimate
 
 import android.content.Intent
+import android.content.SharedPreferences
 import android.graphics.drawable.GradientDrawable
 import android.os.Bundle
 import android.view.View
@@ -29,6 +30,10 @@ class MainActivity : AppCompatActivity(),
     private lateinit var versionText: TextView
     private lateinit var discoveryLabel: TextView
     private lateinit var discoverySlider: Slider
+    private lateinit var prefs: SharedPreferences
+
+    private val PREFS_NAME = "cast_ultimate"
+    private val KEY_DISCOVERY_SECONDS = "discovery_seconds"
 
     private var serverRunning = false
 
@@ -49,6 +54,7 @@ class MainActivity : AppCompatActivity(),
         versionText = findViewById(R.id.versionText)
         discoveryLabel = findViewById(R.id.discoveryLabel)
         discoverySlider = findViewById(R.id.discoverySlider)
+        prefs = getSharedPreferences(PREFS_NAME, MODE_PRIVATE)
 
         val installedVersion = AppUpdater.getInstalledVersionDisplay(this)
         versionText.text = "v$installedVersion"
@@ -80,11 +86,15 @@ class MainActivity : AppCompatActivity(),
             AppUpdater.checkForUpdate(this)
         }
 
-        discoveryLabel.text = "Discovery duration: ${(CastManager.getDiscoveryWindowMs() / 1000)}s"
+        val savedSeconds = prefs.getInt(KEY_DISCOVERY_SECONDS, 8)
+        CastManager.setDiscoveryWindowMs(savedSeconds * 1000L)
+        discoverySlider.value = savedSeconds.toFloat()
+        discoveryLabel.text = "Discovery duration: ${savedSeconds}s"
         discoverySlider.addOnChangeListener { _, value, _ ->
             val windowMs = (value.toLong() * 1000L)
             CastManager.setDiscoveryWindowMs(windowMs)
             discoveryLabel.text = "Discovery duration: ${value.toInt()}s"
+            prefs.edit().putInt(KEY_DISCOVERY_SECONDS, value.toInt()).apply()
         }
 
         AppUpdater.checkForUpdate(this)
