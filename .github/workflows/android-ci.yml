@@ -19,9 +19,9 @@ jobs:
 
       - uses: gradle/wrapper-validation-action@v1
 
-      - uses: gradle-build-action@v2
-        with:
-          arguments: test assembleDebug
+      - name: Build with Gradle
+        run: ./gradlew test assembleDebug
+        shell: bash
 
       - uses: actions/upload-artifact@v3
         with:
@@ -39,9 +39,9 @@ jobs:
           java-version: '17'
           distribution: 'temurin'
 
-      - uses: gradle-build-action@v2
-        with:
-          arguments: assembleRelease
+      - name: Build Release
+        run: ./gradlew assembleRelease
+        shell: bash
 
       - name: Create Release
         uses: softprops/action-gh-release@v1
