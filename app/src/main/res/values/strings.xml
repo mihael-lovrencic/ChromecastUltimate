@@ -1,3 +1,12 @@
 <resources>
     <string name="app_name">Chromecast Ultimate</string>
+    <string name="server_status">Server Status</string>
+    <string name="server_running">Server: Running on port %d</string>
+    <string name="server_stopped">Server: Stopped</string>
+    <string name="quick_actions">Quick Actions</string>
+    <string name="start_server">Start Server</string>
+    <string name="stop_server">Stop Server</string>
+    <string name="discover_cast">Discover &amp; Cast</string>
+    <string name="mirror_screen">Mirror Screen</string>
+    <string name="ready">Ready</string>
 </resources>

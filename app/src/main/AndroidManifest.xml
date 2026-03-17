@@ -9,7 +9,7 @@
     <application
         android:label="Chromecast Ultimate"
         android:allowBackup="false"
-        android:theme="@style/Theme.AppCompat.Light.NoActionBar"
+        android:theme="@style/Theme.ChromecastUltimate"
         android:usesCleartextTraffic="true"
         android:networkSecurityConfig="@xml/network_security_config">
 

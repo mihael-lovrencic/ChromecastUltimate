@@ -1,19 +1,24 @@
 package com.example.castultimate
 
 import android.content.Intent
+import android.graphics.drawable.GradientDrawable
 import android.os.Bundle
-import android.widget.Button
+import android.view.View
 import android.widget.TextView
-import android.widget.Toast
 import androidx.appcompat.app.AppCompatActivity
+import com.google.android.material.appbar.MaterialToolbar
+import com.google.android.material.button.MaterialButton
 
 class MainActivity : AppCompatActivity(), CastManager.DiscoveryListener, CastManager.SessionListener, MediaProjectionManager.ProjectionCallback {
 
-    private lateinit var castButton: Button
-    private lateinit var mirrorButton: Button
-    private lateinit var serverButton: Button
+    private lateinit var castButton: MaterialButton
+    private lateinit var mirrorButton: MaterialButton
+    private lateinit var serverButton: MaterialButton
     private lateinit var statusText: TextView
-    
+    private lateinit var serverStatusText: TextView
+    private lateinit var serverStatusIndicator: View
+    private lateinit var toolbar: MaterialToolbar
+
     private var server: CastServer? = null
     private var serverRunning = false
 
@@ -21,24 +26,19 @@ class MainActivity : AppCompatActivity(), CastManager.DiscoveryListener, CastMan
         super.onCreate(savedInstanceState)
         setContentView(R.layout.activity_main)
 
+        toolbar = findViewById(R.id.toolbar)
+        setSupportActionBar(toolbar)
+
         castButton = findViewById(R.id.castButton)
         mirrorButton = findViewById(R.id.mirrorButton)
         serverButton = findViewById(R.id.serverButton)
         statusText = findViewById(R.id.statusText)
+        serverStatusText = findViewById(R.id.serverStatusText)
+        serverStatusIndicator = findViewById(R.id.serverStatusIndicator)
 
         CastManager.initialize(this)
         CastManager.setDiscoveryListener(this)
         CastManager.setSessionListener(this)
-
-        castButton.setOnClickListener {
-            CastManager.startDiscovery()
-            showStatus("Starting Chromecast discovery...")
-        }
-
-        mirrorButton.setOnClickListener {
-            MediaProjectionManager.setProjectionCallback(this)
-            MediaProjectionManager.startScreenCapture(this)
-        }
 
         serverButton.setOnClickListener {
             if (serverRunning) {
@@ -46,6 +46,16 @@ class MainActivity : AppCompatActivity(), CastManager.DiscoveryListener, CastMan
             } else {
                 startServer()
             }
+        }
+
+        castButton.setOnClickListener {
+            CastManager.startDiscovery()
+            updateStatus("Searching for Chromecast devices...")
+        }
+
+        mirrorButton.setOnClickListener {
+            MediaProjectionManager.setProjectionCallback(this)
+            MediaProjectionManager.startScreenCapture(this)
         }
     }
 
@@ -55,9 +65,11 @@ class MainActivity : AppCompatActivity(), CastManager.DiscoveryListener, CastMan
             server?.start()
             serverRunning = true
             serverButton.text = "Stop Server"
-            showStatus("Server running on port 5000")
+            serverStatusText.text = "Server: Running on port 5000"
+            setServerStatus(true)
+            updateStatus("Server started - Firefox extension can connect")
         } catch (e: Exception) {
-            showStatus("Server error: ${e.message}")
+            updateStatus("Server error: ${e.message}")
         }
     }
 
@@ -67,15 +79,24 @@ class MainActivity : AppCompatActivity(), CastManager.DiscoveryListener, CastMan
             server = null
             serverRunning = false
             serverButton.text = "Start Server"
-            showStatus("Server stopped")
+            serverStatusText.text = "Server: Stopped"
+            setServerStatus(false)
+            updateStatus("Server stopped")
         } catch (e: Exception) {
-            showStatus("Server error: ${e.message}")
+            updateStatus("Server error: ${e.message}")
         }
     }
 
-    private fun showStatus(message: String) {
+    private fun setServerStatus(isRunning: Boolean) {
+        val drawable = serverStatusIndicator.background as? GradientDrawable
+        drawable?.setColor(
+            if (isRunning) getColor(R.color.status_online) 
+            else getColor(R.color.status_offline)
+        )
+    }
+
+    private fun updateStatus(message: String) {
         statusText.text = message
-        Toast.makeText(this, message, Toast.LENGTH_SHORT).show()
     }
 
     override fun onActivityResult(requestCode: Int, resultCode: Int, data: Intent?) {
@@ -87,62 +108,61 @@ class MainActivity : AppCompatActivity(), CastManager.DiscoveryListener, CastMan
 
     override fun onDeviceDiscovered(deviceName: String) {
         runOnUiThread {
-            showStatus("Found: $deviceName")
+            updateStatus("Found: $deviceName")
         }
     }
 
     override fun onDeviceRemoved(deviceName: String) {
         runOnUiThread {
-            showStatus("Device removed: $deviceName")
+            updateStatus("Device removed: $deviceName")
         }
     }
 
     override fun onDiscoveryStarted() {
         runOnUiThread {
-            showStatus("Discovery started")
+            updateStatus("Discovery started...")
         }
     }
 
     override fun onDiscoveryStopped() {
         runOnUiThread {
-            showStatus("Discovery stopped")
+            updateStatus("Discovery stopped")
         }
     }
 
     override fun onSessionStarted(session: com.google.android.gms.cast.framework.CastSession) {
         runOnUiThread {
-            showStatus("Connected to Chromecast")
+            updateStatus("Connected to Chromecast!")
         }
     }
 
     override fun onSessionEnded(error: String?) {
         runOnUiThread {
-            showStatus("Disconnected: $error")
+            updateStatus("Disconnected: $error")
         }
     }
 
     override fun onConnectivityChanged(connected: Boolean) {
         runOnUiThread {
-            val message = if (connected) "Connected" else "Disconnected"
-            showStatus(message)
+            updateStatus(if (connected) "Connected" else "Disconnected")
         }
     }
 
     override fun onProjectionStarted() {
         runOnUiThread {
-            showStatus("Screen capture started")
+            updateStatus("Screen mirroring started")
         }
     }
 
     override fun onProjectionStopped() {
         runOnUiThread {
-            showStatus("Screen capture stopped")
+            updateStatus("Screen mirroring stopped")
         }
     }
 
     override fun onError(error: String) {
         runOnUiThread {
-            showStatus("Error: $error")
+            updateStatus("Error: $error")
         }
     }
 
