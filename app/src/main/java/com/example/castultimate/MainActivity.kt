@@ -5,19 +5,27 @@ import android.graphics.drawable.GradientDrawable
 import android.os.Bundle
 import android.view.View
 import android.widget.TextView
+import android.widget.Toast
+import androidx.appcompat.app.AlertDialog
 import androidx.appcompat.app.AppCompatActivity
 import com.google.android.material.appbar.MaterialToolbar
 import com.google.android.material.button.MaterialButton
 
-class MainActivity : AppCompatActivity(), CastManager.DiscoveryListener, CastManager.SessionListener, MediaProjectionManager.ProjectionCallback {
+class MainActivity : AppCompatActivity(), 
+    CastManager.DiscoveryListener, 
+    CastManager.SessionListener, 
+    MediaProjectionManager.ProjectionCallback,
+    AppUpdater.UpdateListener {
 
     private lateinit var castButton: MaterialButton
     private lateinit var mirrorButton: MaterialButton
     private lateinit var serverButton: MaterialButton
+    private lateinit var updateButton: MaterialButton
     private lateinit var statusText: TextView
     private lateinit var serverStatusText: TextView
     private lateinit var serverStatusIndicator: View
     private lateinit var toolbar: MaterialToolbar
+    private lateinit var versionText: TextView
 
     private var server: CastServer? = null
     private var serverRunning = false
@@ -32,13 +40,20 @@ class MainActivity : AppCompatActivity(), CastManager.DiscoveryListener, CastMan
         castButton = findViewById(R.id.castButton)
         mirrorButton = findViewById(R.id.mirrorButton)
         serverButton = findViewById(R.id.serverButton)
+        updateButton = findViewById(R.id.updateButton)
         statusText = findViewById(R.id.statusText)
         serverStatusText = findViewById(R.id.serverStatusText)
         serverStatusIndicator = findViewById(R.id.serverStatusIndicator)
+        versionText = findViewById(R.id.versionText)
+
+        val versionName = packageManager.getPackageInfo(packageName, 0).versionName
+        versionText.text = "v$versionName"
 
         CastManager.initialize(this)
         CastManager.setDiscoveryListener(this)
         CastManager.setSessionListener(this)
+
+        AppUpdater.setUpdateListener(this)
 
         serverButton.setOnClickListener {
             if (serverRunning) {
@@ -57,6 +72,13 @@ class MainActivity : AppCompatActivity(), CastManager.DiscoveryListener, CastMan
             MediaProjectionManager.setProjectionCallback(this)
             MediaProjectionManager.startScreenCapture(this)
         }
+
+        updateButton.setOnClickListener {
+            updateStatus("Checking for updates...")
+            AppUpdater.checkForUpdate(this)
+        }
+
+        AppUpdater.checkForUpdate(this)
     }
 
     private fun startServer() {
@@ -97,6 +119,40 @@ class MainActivity : AppCompatActivity(), CastManager.DiscoveryListener, CastMan
 
     private fun updateStatus(message: String) {
         statusText.text = message
+    }
+
+    override fun onUpdateAvailable(version: String, downloadUrl: String, releaseNotes: String?) {
+        updateButton.text = "Update Available: v$version"
+        updateButton.isEnabled = true
+        
+        AlertDialog.Builder(this)
+            .setTitle("Update Available")
+            .setMessage("Version $version is available.\n\n${releaseNotes ?: "Tap 'Update' to download and install."}")
+            .setPositiveButton("Update") { _, _ ->
+                updateStatus("Downloading update...")
+                downloadAndInstallApk(downloadUrl)
+            }
+            .setNegativeButton("Later", null)
+            .show()
+    }
+
+    override fun onUpdateNotAvailable(currentVersion: String) {
+        updateStatus("App is up to date (v$currentVersion)")
+    }
+
+    override fun onError(error: String) {
+        updateStatus("Update check failed")
+        Toast.makeText(this, error, Toast.LENGTH_SHORT).show()
+    }
+
+    private fun downloadAndInstallApk(url: String) {
+        try {
+            val intent = Intent(Intent.ACTION_VIEW)
+            intent.data = android.net.Uri.parse(url)
+            startActivity(intent)
+        } catch (e: Exception) {
+            updateStatus("Failed to open download: ${e.message}")
+        }
     }
 
     override fun onActivityResult(requestCode: Int, resultCode: Int, data: Intent?) {
