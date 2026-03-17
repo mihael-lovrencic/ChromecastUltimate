@@ -25,36 +25,15 @@ jobs:
       - name: Build Debug APK
         run: ./gradle-8.5/bin/gradle assembleDebug
 
+      - name: Build Release APK
+        run: ./gradle-8.5/bin/gradle assembleRelease
+
       - uses: actions/upload-artifact@v4
         with:
           name: app-debug.apk
           path: app/build/outputs/apk/debug/app-debug.apk
 
-  release:
-    needs: build
-    runs-on: ubuntu-latest
-    if: github.event_name == 'push' && github.ref == 'refs/heads/main'
-    steps:
-      - uses: actions/checkout@v4
-
-      - uses: actions/setup-java@v4
+      - uses: actions/upload-artifact@v4
         with:
-          java-version: '17'
-          distribution: 'temurin'
-
-      - name: Download and extract Gradle
-        run: |
-          curl -sL https://services.gradle.org/distributions/gradle-8.5-bin.zip -o gradle.zip
-          unzip -q gradle.zip
-
-      - name: Build Release APK
-        run: ./gradle-8.5/bin/gradle assembleRelease
-
-      - name: Create Release
-        uses: softprops/action-gh-release@v2
-        with:
-          files: app/build/outputs/apk/release/app-release.apk
-          tag_name: v1.0.0
-          name: Release v1.0.0
-        env:
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          name: app-release.apk
+          path: app/build/outputs/apk/release/app-release.apk
