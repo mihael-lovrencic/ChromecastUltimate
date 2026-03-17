@@ -1,0 +1,37 @@
+# Dependabot configuration
+# https://docs.github.com/en/code-security/dependabot/dependabot-version-updates
+
+version: 2
+
+updates:
+  # Enable version updates for npm dependencies
+  - package-ecosystem: "gradle"
+    directory: "/"
+    schedule:
+      interval: "weekly"
+      day: "mondy"
+      time: "09:00"
+      timezone: "UTC"
+    open-pull-requests-limit: 10
+    
+    # Reviewers for dependency updates
+    reviewers:
+      - "mihael-lovrencic"
+    
+    # Labels for dependency update PRs
+    labels:
+      - "dependencies"
+      - "security"
+    
+    # Commit message prefix
+    commit-message:
+      prefix: "deps"
+    
+    # Group minor and patch updates
+    groupings:
+      production-dependencies:
+        patterns:
+          - "*"
+        update-types:
+          - "minor"
+          - "patch"
