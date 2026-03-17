@@ -6,14 +6,32 @@ on:
     paths-ignore:
       - '**/*.md'
       - '**/*.txt'
+      - '**/*.json'
       - 'LICENSE'
+      - '.gitignore'
+      - '.gitattributes'
+      - '.editorconfig'
+      - '.vscode/**'
+      - '.idea/**'
+      - '.github/ISSUE_TEMPLATE/**'
+      - '.github/PULL_REQUEST_TEMPLATE/**'
+      - '.github/FUNDING.yml'
       - 'docs/**'
   pull_request:
     branches: [ main ]
     paths-ignore:
       - '**/*.md'
       - '**/*.txt'
+      - '**/*.json'
       - 'LICENSE'
+      - '.gitignore'
+      - '.gitattributes'
+      - '.editorconfig'
+      - '.vscode/**'
+      - '.idea/**'
+      - '.github/ISSUE_TEMPLATE/**'
+      - '.github/PULL_REQUEST_TEMPLATE/**'
+      - '.github/FUNDING.yml'
       - 'docs/**'
 
 jobs:
