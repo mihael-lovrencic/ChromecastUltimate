@@ -131,6 +131,7 @@ object MediaProjectionManager {
         val windowManager = context.getSystemService(Context.WINDOW_SERVICE) as android.view.WindowManager
         @Suppress("DEPRECATION")
         val display = windowManager.defaultDisplay
+        @Suppress("DEPRECATION")
         display.getRealMetrics(metrics)
 
         val density = metrics.densityDpi
