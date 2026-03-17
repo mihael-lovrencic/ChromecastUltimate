@@ -24,7 +24,10 @@ object CastManager : SessionManagerListener<CastSession> {
     private var contextRef: Context? = null
     private var mediaRouter: MediaRouter? = null
     private var routeSelector: MediaRouteSelector? = null
-    private val knownRoutes = mutableSetOf<String>()
+    data class DeviceInfo(val id: String, val name: String)
+
+    private val knownRoutes = mutableMapOf<String, MediaRouter.RouteInfo>()
+    private var discoveryActive = false
 
     private val routerCallback = object : MediaRouter.Callback() {
         override fun onRouteAdded(router: MediaRouter, route: MediaRouter.RouteInfo) {
@@ -36,8 +39,8 @@ object CastManager : SessionManagerListener<CastSession> {
         }
 
         override fun onRouteRemoved(router: MediaRouter, route: MediaRouter.RouteInfo) {
-            val deviceName = getDeviceName(route) ?: return
-            if (knownRoutes.remove(deviceName)) {
+            val deviceName = getDeviceName(route) ?: route.name
+            if (knownRoutes.remove(route.id) != null) {
                 discoveryListener?.onDeviceRemoved(deviceName)
             }
         }
@@ -81,6 +84,8 @@ object CastManager : SessionManagerListener<CastSession> {
     }
 
     fun startDiscovery() {
+        if (discoveryActive) return
+        discoveryActive = true
         discoveryListener?.onDiscoveryStarted()
         val router = mediaRouter
         val selector = routeSelector
@@ -98,10 +103,34 @@ object CastManager : SessionManagerListener<CastSession> {
     }
 
     fun stopDiscovery() {
+        if (!discoveryActive) return
+        discoveryActive = false
         discoveryListener?.onDiscoveryStopped()
         mediaRouter?.removeCallback(routerCallback)
         knownRoutes.clear()
         Log.d(TAG, "Discovery stopped")
+    }
+
+    fun ensureDiscovery() {
+        if (!discoveryActive) {
+            startDiscovery()
+        }
+    }
+
+    fun getDevices(): List<DeviceInfo> {
+        return knownRoutes.values.map { route ->
+            val name = getDeviceName(route) ?: route.name
+            DeviceInfo(route.id, name)
+        }.sortedBy { it.name }
+    }
+
+    fun selectDevice(identifier: String): Boolean {
+        val router = mediaRouter ?: return false
+        val route = knownRoutes.values.firstOrNull { it.id == identifier }
+            ?: knownRoutes.values.firstOrNull { (getDeviceName(it) ?: it.name).equals(identifier, ignoreCase = true) }
+            ?: return false
+        router.selectRoute(route)
+        return true
     }
 
     @Suppress("DEPRECATION")
@@ -152,6 +181,16 @@ object CastManager : SessionManagerListener<CastSession> {
     fun getVolume(): Double = currentSession?.volume ?: 0.0
 
     fun isConnected(): Boolean = currentSession != null
+
+    fun getPositionMs(): Long {
+        val remote = currentSession?.remoteMediaClient ?: return 0L
+        return remote.mediaStatus?.streamPosition ?: 0L
+    }
+
+    fun getDurationMs(): Long {
+        val remote = currentSession?.remoteMediaClient ?: return 0L
+        return remote.mediaStatus?.mediaInformation?.streamDuration ?: 0L
+    }
 
     fun endSession() {
         sessionManager?.endCurrentSession(true)
@@ -212,11 +251,13 @@ object CastManager : SessionManagerListener<CastSession> {
         mediaRouter = null
         routeSelector = null
         knownRoutes.clear()
+        discoveryActive = false
     }
 
     private fun maybeNotifyRouteAdded(route: MediaRouter.RouteInfo) {
-        val deviceName = getDeviceName(route) ?: return
-        if (knownRoutes.add(deviceName)) {
+        val deviceName = getDeviceName(route) ?: route.name
+        if (!knownRoutes.containsKey(route.id)) {
+            knownRoutes[route.id] = route
             discoveryListener?.onDeviceDiscovered(deviceName)
         }
     }

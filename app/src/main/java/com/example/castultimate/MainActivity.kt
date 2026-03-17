@@ -83,7 +83,18 @@ class MainActivity : AppCompatActivity(),
 
     private fun startServer() {
         try {
-            server = CastServer(5000)
+            server = CastServer(5000, object : CastServer.MirrorController {
+                override fun requestMirror(url: String?): Boolean {
+                    if (MediaProjectionManager.isCapturing()) {
+                        return true
+                    }
+                    runOnUiThread {
+                        MediaProjectionManager.setProjectionCallback(this@MainActivity)
+                        MediaProjectionManager.startScreenCapture(this@MainActivity)
+                    }
+                    return true
+                }
+            })
             server?.start()
             serverRunning = true
             serverButton.text = "Stop Server"
