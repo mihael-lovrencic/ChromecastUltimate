@@ -9,64 +9,25 @@ on:
 jobs:
   build:
     runs-on: ubuntu-latest
-    permissions:
-      contents: write
     steps:
-    - uses: actions/checkout@v4
+      - name: Checkout
+        uses: actions/checkout@v4
+      
+      - name: Setup Java
+        uses: actions/setup-java@v4
+        with:
+          java-version: '17'
+          
+      - name: Run Gradle
+        run: |
+          cd /tmp
+          curl -sL https://services.gradle.org/distributions/gradle-8.5-bin.zip -o gradle.zip
+          unzip -q gradle.zip
+          cd -
+          /tmp/gradle-8.5/bin/gradle -p ${{ github.workspace }} test assembleDebug
 
-    - uses: actions/setup-java@v4
-      with:
-        java-version: '17'
-        distribution: 'temurin'
-
-    - uses: actions/cache@v3
-      with:
-        path: |
-          ~/.gradle/caches
-          ~/.gradle/wrapper
-        key: ${{ runner.os }}-gradle-${{ hashFiles('**/*.gradle*', '**/gradle-wrapper.properties') }}
-        restore-keys: |
-          ${{ runner.os }}-gradle-
-
-    - name: Download gradlew
-      run: |
-        curl -sL https://services.gradle.org/distributions/gradle-8.5-bin.zip -o gradle.zip
-        unzip -q gradle.zip
-        chmod +x gradle-8.5/bin/gradle
-
-    - name: Run tests
-      run: ./gradle-8.5/bin/gradle test
-
-    - name: Build Debug APK
-      run: ./gradle-8.5/bin/gradle assembleDebug
-
-    - name: Build Release APK
-      if: github.event_name == 'push' && github.ref == 'refs/heads/main'
-      run: ./gradle-8.5/bin/gradle assembleRelease
-
-    - name: Upload Debug APK
-      uses: actions/upload-artifact@v3
-      with:
-        name: app-debug.apk
-        path: app/build/outputs/apk/debug/app-debug.apk
-
-    - name: Upload Release APK
-      if: github.event_name == 'push' && github.ref == 'refs/heads/main'
-      uses: actions/upload-artifact@v3
-      with:
-        name: app-release.apk
-        path: app/build/outputs/apk/release/app-release.apk
-
-    - name: Get version
-      if: github.event_name == 'push' && github.ref == 'refs/heads/main'
-      id: version
-      run: echo "VERSION_NAME=1.0.0" >> $GITHUB_OUTPUT
-
-    - name: Create Release
-      if: github.event_name == 'push' && github.ref == 'refs/heads/main'
-      uses: softprops/action-gh-release@v1
-      with:
-        files: app/build/outputs/apk/release/app-release.apk
-        tag_name: v${{ steps.version.outputs.VERSION_NAME }}
-      env:
-        GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+      - name: Upload APK
+        uses: actions/upload-artifact@v3
+        with:
+          name: app-debug.apk
+          path: ${{ github.workspace }}/app/build/outputs/apk/debug/app-debug.apk
