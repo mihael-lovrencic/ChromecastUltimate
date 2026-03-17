@@ -30,3 +30,8 @@
 -keepattributes Exceptions
 -keepattributes InnerClasses
 -keepattributes EnclosingMethod
+
+# Fix R8 default constructor warning
+-keepclassmembers class * {
+    public <init>();
+}

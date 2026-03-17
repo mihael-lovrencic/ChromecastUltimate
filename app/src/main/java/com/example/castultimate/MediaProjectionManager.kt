@@ -128,11 +128,11 @@ object MediaProjectionManager {
 
     private fun startCapture(context: Context) {
         val metrics = DisplayMetrics()
-        val windowManager = context.getSystemService(Context.WINDOW_SERVICE) as android.view.WindowManager
-        @Suppress("DEPRECATION")
-        val display = windowManager.defaultDisplay
-        @Suppress("DEPRECATION")
-        display.getRealMetrics(metrics)
+        val displayManager = context.getSystemService(Context.DISPLAY_SERVICE) as DisplayManager
+        val displays = displayManager.displays
+        val primaryDisplay = displays.firstOrNull() ?: throw IllegalStateException("No display found")
+        
+        primaryDisplay.getRealMetrics(metrics)
 
         val density = metrics.densityDpi
 
