@@ -1,0 +1,21 @@
+version: '3.8'
+
+services:
+  android-builder:
+    build: .
+    volumes:
+      - .:/app
+      - gradle-cache:/root/.gradle
+    working_dir: /app
+    command: ./gradlew assembleDebug
+
+  android-test:
+    build: .
+    volumes:
+      - .:/app
+      - gradle-cache:/root/.gradle
+    working_dir: /app
+    command: ./gradlew test
+
+volumes:
+  gradle-cache:
