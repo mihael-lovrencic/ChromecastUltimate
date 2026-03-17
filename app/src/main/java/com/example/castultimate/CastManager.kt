@@ -37,6 +37,7 @@ object CastManager : SessionManagerListener<CastSession> {
     private val mainHandler = Handler(Looper.getMainLooper())
     private var discoveryStopTask: Runnable? = null
     private var lastDiscoveryStartMs = 0L
+    private var discoveryWindowMs = 8000L
 
     private val routerCallback = object : MediaRouter.Callback() {
         override fun onRouteAdded(router: MediaRouter, route: MediaRouter.RouteInfo) {
@@ -126,7 +127,7 @@ object CastManager : SessionManagerListener<CastSession> {
 
     fun ensureDiscovery() {
         val now = SystemClock.elapsedRealtime()
-        if (!discoveryActive || now - lastDiscoveryStartMs > 8000) {
+        if (!discoveryActive || now - lastDiscoveryStartMs > discoveryWindowMs) {
             startDiscovery()
         } else {
             scheduleDiscoveryStop()
@@ -372,6 +373,12 @@ object CastManager : SessionManagerListener<CastSession> {
             // Stop discovery after a short window to save battery.
             stopDiscovery()
         }
-        mainHandler.postDelayed(discoveryStopTask!!, 8000)
+        mainHandler.postDelayed(discoveryStopTask!!, discoveryWindowMs)
     }
+
+    fun setDiscoveryWindowMs(windowMs: Long) {
+        discoveryWindowMs = windowMs.coerceIn(2000L, 30000L)
+    }
+
+    fun getDiscoveryWindowMs(): Long = discoveryWindowMs
 }

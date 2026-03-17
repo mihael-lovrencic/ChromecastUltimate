@@ -8,6 +8,7 @@ import android.widget.TextView
 import android.widget.Toast
 import androidx.appcompat.app.AlertDialog
 import androidx.appcompat.app.AppCompatActivity
+import com.google.android.material.slider.Slider
 import com.google.android.material.appbar.MaterialToolbar
 import com.google.android.material.button.MaterialButton
 
@@ -26,6 +27,8 @@ class MainActivity : AppCompatActivity(),
     private lateinit var serverStatusIndicator: View
     private lateinit var toolbar: MaterialToolbar
     private lateinit var versionText: TextView
+    private lateinit var discoveryLabel: TextView
+    private lateinit var discoverySlider: Slider
 
     private var serverRunning = false
 
@@ -44,6 +47,8 @@ class MainActivity : AppCompatActivity(),
         serverStatusText = findViewById(R.id.serverStatusText)
         serverStatusIndicator = findViewById(R.id.serverStatusIndicator)
         versionText = findViewById(R.id.versionText)
+        discoveryLabel = findViewById(R.id.discoveryLabel)
+        discoverySlider = findViewById(R.id.discoverySlider)
 
         val installedVersion = AppUpdater.getInstalledVersionDisplay(this)
         versionText.text = "v$installedVersion"
@@ -73,6 +78,13 @@ class MainActivity : AppCompatActivity(),
         updateButton.setOnClickListener {
             updateStatus("Checking for updates...")
             AppUpdater.checkForUpdate(this)
+        }
+
+        discoveryLabel.text = "Discovery duration: ${(CastManager.getDiscoveryWindowMs() / 1000)}s"
+        discoverySlider.addOnChangeListener { _, value, _ ->
+            val windowMs = (value.toLong() * 1000L)
+            CastManager.setDiscoveryWindowMs(windowMs)
+            discoveryLabel.text = "Discovery duration: ${value.toInt()}s"
         }
 
         AppUpdater.checkForUpdate(this)
