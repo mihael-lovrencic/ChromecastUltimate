@@ -9,6 +9,9 @@ on:
 jobs:
   build:
     runs-on: ubuntu-latest
+    defaults:
+      run:
+        shell: bash
     steps:
       - uses: actions/checkout@v5
 
@@ -16,6 +19,10 @@ jobs:
         with:
           java-version: '17'
           distribution: 'temurin'
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 'latest'
 
       - name: Download and extract Gradle
         run: |
@@ -48,7 +55,7 @@ jobs:
             *.apk
           tag_name: v${{ github.run_number }}
           name: Release v${{ github.run_number }}
-          overwrite: true
+          overwrite_files: true
           draft: false
         env:
           GITHUB_TOKEN: ${{ secrets.RELEASE_TOKEN }}
