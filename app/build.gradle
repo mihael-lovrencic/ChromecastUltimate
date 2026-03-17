@@ -63,20 +63,6 @@ tasks.withType(org.jetbrains.kotlin.gradle.tasks.KotlinCompile).configureEach {
     }
 }
 
-tasks.register("printVersionName") {
-    doLast {
-        def androidExt = project.extensions.getByName("android")
-        println(androidExt.defaultConfig.versionName)
-    }
-}
-
-tasks.register("printVersionCode") {
-    doLast {
-        def androidExt = project.extensions.getByName("android")
-        println(androidExt.defaultConfig.versionCode)
-    }
-}
-
 dependencies {
     implementation 'androidx.appcompat:appcompat:1.7.0'
     implementation 'androidx.core:core-ktx:1.15.0'
