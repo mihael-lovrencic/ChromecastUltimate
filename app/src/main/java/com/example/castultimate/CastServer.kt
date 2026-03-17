@@ -61,8 +61,15 @@ class CastServer(
     private fun handleGetDevices(): Response {
         return try {
             CastManager.ensureDiscovery()
+            // Give discovery a brief window to populate routes.
+            var deviceList = CastManager.getDevices()
+            val deadline = System.currentTimeMillis() + 2000
+            while (deviceList.isEmpty() && System.currentTimeMillis() < deadline) {
+                Thread.sleep(200)
+                deviceList = CastManager.getDevices()
+            }
             val devices = JSONArray()
-            CastManager.getDevices().forEach { device ->
+            deviceList.forEach { device ->
                 devices.put(JSONObject().apply {
                     put("address", device.id)
                     put("name", device.name)

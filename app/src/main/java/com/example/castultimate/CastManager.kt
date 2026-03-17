@@ -148,7 +148,6 @@ object CastManager : SessionManagerListener<CastSession> {
         discoveryActive = false
         discoveryListener?.onDiscoveryStopped()
         mediaRouter?.removeCallback(routerCallback)
-        knownRoutes.clear()
         Log.d(TAG, "Discovery stopped")
         discoveryStopTask?.let { mainHandler.removeCallbacks(it) }
         discoveryStopTask = null
