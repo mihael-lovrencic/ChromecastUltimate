@@ -1,6 +1,9 @@
 package com.example.castultimate
 
 import android.content.Context
+import android.os.Handler
+import android.os.Looper
+import android.os.SystemClock
 import android.util.Log
 import androidx.mediarouter.media.MediaRouteSelector
 import androidx.mediarouter.media.MediaRouter
@@ -31,6 +34,9 @@ object CastManager : SessionManagerListener<CastSession> {
 
     private val knownRoutes = mutableMapOf<String, MediaRouter.RouteInfo>()
     private var discoveryActive = false
+    private val mainHandler = Handler(Looper.getMainLooper())
+    private var discoveryStopTask: Runnable? = null
+    private var lastDiscoveryStartMs = 0L
 
     private val routerCallback = object : MediaRouter.Callback() {
         override fun onRouteAdded(router: MediaRouter, route: MediaRouter.RouteInfo) {
@@ -89,6 +95,7 @@ object CastManager : SessionManagerListener<CastSession> {
     fun startDiscovery() {
         if (discoveryActive) return
         discoveryActive = true
+        lastDiscoveryStartMs = SystemClock.elapsedRealtime()
         discoveryListener?.onDiscoveryStarted()
         val router = mediaRouter
         val selector = routeSelector
@@ -103,6 +110,7 @@ object CastManager : SessionManagerListener<CastSession> {
             Log.w(TAG, "MediaRouter not initialized for discovery")
         }
         Log.d(TAG, "Discovery started")
+        scheduleDiscoveryStop()
     }
 
     fun stopDiscovery() {
@@ -112,11 +120,16 @@ object CastManager : SessionManagerListener<CastSession> {
         mediaRouter?.removeCallback(routerCallback)
         knownRoutes.clear()
         Log.d(TAG, "Discovery stopped")
+        discoveryStopTask?.let { mainHandler.removeCallbacks(it) }
+        discoveryStopTask = null
     }
 
     fun ensureDiscovery() {
-        if (!discoveryActive) {
+        val now = SystemClock.elapsedRealtime()
+        if (!discoveryActive || now - lastDiscoveryStartMs > 8000) {
             startDiscovery()
+        } else {
+            scheduleDiscoveryStop()
         }
     }
 
@@ -335,6 +348,8 @@ object CastManager : SessionManagerListener<CastSession> {
         routeSelector = null
         knownRoutes.clear()
         discoveryActive = false
+        discoveryStopTask?.let { mainHandler.removeCallbacks(it) }
+        discoveryStopTask = null
     }
 
     private fun maybeNotifyRouteAdded(route: MediaRouter.RouteInfo) {
@@ -349,5 +364,14 @@ object CastManager : SessionManagerListener<CastSession> {
         val extras = route.extras ?: return null
         val device = CastDevice.getFromBundle(extras) ?: return null
         return device.friendlyName ?: route.name
+    }
+
+    private fun scheduleDiscoveryStop() {
+        discoveryStopTask?.let { mainHandler.removeCallbacks(it) }
+        discoveryStopTask = Runnable {
+            // Stop discovery after a short window to save battery.
+            stopDiscovery()
+        }
+        mainHandler.postDelayed(discoveryStopTask!!, 8000)
     }
 }
