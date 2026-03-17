@@ -263,10 +263,7 @@ class MainActivity : AppCompatActivity(),
         if (hasDiscoveryPermission()) return true
 
         val perms = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
-            arrayOf(
-                android.Manifest.permission.NEARBY_WIFI_DEVICES,
-                android.Manifest.permission.ACCESS_FINE_LOCATION
-            )
+            arrayOf(android.Manifest.permission.NEARBY_WIFI_DEVICES)
         } else {
             arrayOf(android.Manifest.permission.ACCESS_FINE_LOCATION)
         }
@@ -276,19 +273,17 @@ class MainActivity : AppCompatActivity(),
     }
 
     private fun hasDiscoveryPermission(): Boolean {
-        val nearbyGranted = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
+        return if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
             ContextCompat.checkSelfPermission(
                 this,
                 android.Manifest.permission.NEARBY_WIFI_DEVICES
             ) == android.content.pm.PackageManager.PERMISSION_GRANTED
         } else {
-            true
+            ContextCompat.checkSelfPermission(
+                this,
+                android.Manifest.permission.ACCESS_FINE_LOCATION
+            ) == android.content.pm.PackageManager.PERMISSION_GRANTED
         }
-        val locationGranted = ContextCompat.checkSelfPermission(
-            this,
-            android.Manifest.permission.ACCESS_FINE_LOCATION
-        ) == android.content.pm.PackageManager.PERMISSION_GRANTED
-        return nearbyGranted && locationGranted
     }
 
     private fun isLocationEnabled(): Boolean {
