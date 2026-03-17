@@ -73,8 +73,8 @@ jobs:
         if: github.event_name == 'push' && github.ref == 'refs/heads/main'
         run: |
           set -euo pipefail
-          VERSION_NAME=$(./gradlew -q :printVersionName --no-configuration-cache --console=plain)
-          VERSION_CODE=$(./gradlew -q :printVersionCode --no-configuration-cache --console=plain)
+          VERSION_NAME=$(./gradlew -q :printVersionName --no-configuration-cache --console=plain | tail -n 1 | tr -d '\r')
+          VERSION_CODE=$(./gradlew -q :printVersionCode --no-configuration-cache --console=plain | tail -n 1 | tr -d '\r')
           if [ -z "$VERSION_NAME" ] || [ -z "$VERSION_CODE" ]; then
             echo "Version info missing. VERSION_NAME='$VERSION_NAME' VERSION_CODE='$VERSION_CODE'"
             exit 1
