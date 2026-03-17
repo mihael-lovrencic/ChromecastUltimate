@@ -7,21 +7,18 @@ class CastManagerTest {
 
     @Test
     fun testIsConnected_whenNoSession_returnsFalse() {
-        val manager = CastManager()
-        assertFalse(manager.isConnected())
+        assertFalse(CastManager.isConnected())
     }
 
     @Test
     fun testGetVolume_whenNoSession_returnsZero() {
-        val manager = CastManager()
-        assertEquals(0.0, manager.getVolume(), 0.0)
+        assertEquals(0.0, CastManager.getVolume(), 0.0)
     }
 
     @Test
     fun testControl_withInvalidAction_doesNotThrow() {
-        val manager = CastManager()
         try {
-            manager.control("invalid_action")
+            CastManager.control("invalid_action")
         } catch (e: Exception) {
             fail("Should not throw exception")
         }
@@ -29,9 +26,8 @@ class CastManagerTest {
 
     @Test
     fun testCastVideo_withEmptyUrl_doesNotThrow() {
-        val manager = CastManager()
         try {
-            manager.castVideo("")
+            CastManager.castVideo("")
         } catch (e: Exception) {
             fail("Should not throw exception")
         }

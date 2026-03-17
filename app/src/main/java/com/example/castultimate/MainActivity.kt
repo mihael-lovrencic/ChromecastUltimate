@@ -3,14 +3,19 @@ package com.example.castultimate
 import android.content.Intent
 import android.os.Bundle
 import android.widget.Button
+import android.widget.TextView
 import android.widget.Toast
 import androidx.appcompat.app.AppCompatActivity
-import com.google.android.gms.cast.framework.CastDevice
 
 class MainActivity : AppCompatActivity(), CastManager.DiscoveryListener, CastManager.SessionListener, MediaProjectionManager.ProjectionCallback {
 
     private lateinit var castButton: Button
     private lateinit var mirrorButton: Button
+    private lateinit var serverButton: Button
+    private lateinit var statusText: TextView
+    
+    private var server: CastServer? = null
+    private var serverRunning = false
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
@@ -18,20 +23,59 @@ class MainActivity : AppCompatActivity(), CastManager.DiscoveryListener, CastMan
 
         castButton = findViewById(R.id.castButton)
         mirrorButton = findViewById(R.id.mirrorButton)
+        serverButton = findViewById(R.id.serverButton)
+        statusText = findViewById(R.id.statusText)
 
         CastManager.initialize(this)
         CastManager.setDiscoveryListener(this)
         CastManager.setSessionListener(this)
 
         castButton.setOnClickListener {
-            CastManager.startDiscovery(this)
-            Toast.makeText(this, "Starting Chromecast discovery...", Toast.LENGTH_SHORT).show()
+            CastManager.startDiscovery()
+            showStatus("Starting Chromecast discovery...")
         }
 
         mirrorButton.setOnClickListener {
             MediaProjectionManager.setProjectionCallback(this)
             MediaProjectionManager.startScreenCapture(this)
         }
+
+        serverButton.setOnClickListener {
+            if (serverRunning) {
+                stopServer()
+            } else {
+                startServer()
+            }
+        }
+    }
+
+    private fun startServer() {
+        try {
+            server = CastServer(5000)
+            server?.start()
+            serverRunning = true
+            serverButton.text = "Stop Server"
+            showStatus("Server running on port 5000")
+        } catch (e: Exception) {
+            showStatus("Server error: ${e.message}")
+        }
+    }
+
+    private fun stopServer() {
+        try {
+            server?.stop()
+            server = null
+            serverRunning = false
+            serverButton.text = "Start Server"
+            showStatus("Server stopped")
+        } catch (e: Exception) {
+            showStatus("Server error: ${e.message}")
+        }
+    }
+
+    private fun showStatus(message: String) {
+        statusText.text = message
+        Toast.makeText(this, message, Toast.LENGTH_SHORT).show()
     }
 
     override fun onActivityResult(requestCode: Int, resultCode: Int, data: Intent?) {
@@ -41,69 +85,72 @@ class MainActivity : AppCompatActivity(), CastManager.DiscoveryListener, CastMan
         }
     }
 
-    override fun onDeviceDiscovered(device: CastDevice) {
+    override fun onDeviceDiscovered(deviceName: String) {
         runOnUiThread {
-            Toast.makeText(this, "Found: ${device.friendlyName}", Toast.LENGTH_SHORT).show()
+            showStatus("Found: $deviceName")
         }
     }
 
     override fun onDeviceRemoved(deviceName: String) {
         runOnUiThread {
-            Toast.makeText(this, "Device removed: $deviceName", Toast.LENGTH_SHORT).show()
+            showStatus("Device removed: $deviceName")
         }
     }
 
     override fun onDiscoveryStarted() {
         runOnUiThread {
-            Toast.makeText(this, "Discovery started", Toast.LENGTH_SHORT).show()
+            showStatus("Discovery started")
         }
     }
 
     override fun onDiscoveryStopped() {
         runOnUiThread {
-            Toast.makeText(this, "Discovery stopped", Toast.LENGTH_SHORT).show()
+            showStatus("Discovery stopped")
         }
     }
 
     override fun onSessionStarted(session: com.google.android.gms.cast.framework.CastSession) {
         runOnUiThread {
-            Toast.makeText(this, "Connected to Chromecast", Toast.LENGTH_SHORT).show()
+            showStatus("Connected to Chromecast")
         }
     }
 
     override fun onSessionEnded(error: String?) {
         runOnUiThread {
-            Toast.makeText(this, "Disconnected: $error", Toast.LENGTH_SHORT).show()
+            showStatus("Disconnected: $error")
         }
     }
 
     override fun onConnectivityChanged(connected: Boolean) {
         runOnUiThread {
             val message = if (connected) "Connected" else "Disconnected"
-            Toast.makeText(this, message, Toast.LENGTH_SHORT).show()
+            showStatus(message)
         }
     }
 
     override fun onProjectionStarted() {
         runOnUiThread {
-            Toast.makeText(this, "Screen capture started", Toast.LENGTH_SHORT).show()
+            showStatus("Screen capture started")
         }
     }
 
     override fun onProjectionStopped() {
         runOnUiThread {
-            Toast.makeText(this, "Screen capture stopped", Toast.LENGTH_SHORT).show()
+            showStatus("Screen capture stopped")
         }
     }
 
     override fun onError(error: String) {
         runOnUiThread {
-            Toast.makeText(this, "Error: $error", Toast.LENGTH_SHORT).show()
+            showStatus("Error: $error")
         }
     }
 
     override fun onDestroy() {
         super.onDestroy()
+        if (serverRunning) {
+            stopServer()
+        }
         CastManager.release()
         if (MediaProjectionManager.isCapturing()) {
             MediaProjectionManager.stopCapture()

@@ -6,27 +6,18 @@ import com.google.android.gms.cast.framework.CastContext
 import com.google.android.gms.cast.framework.CastSession
 import com.google.android.gms.cast.framework.SessionManager
 import com.google.android.gms.cast.framework.SessionManagerListener
-import com.google.android.gms.cast.framework.media.RemoteMediaClient
 
-class CastManager : SessionManagerListener<CastSession> {
+object CastManager : SessionManagerListener<CastSession> {
 
-    private companion object {
-        private const val TAG = "CastManager"
-        private const val CAST_APP_ID = "CC1AD845"
-
-        @Volatile
-        private var instance: CastManager? = null
-
-        fun getInstance(): CastManager = instance ?: synchronized(this) {
-            instance ?: CastManager().also { instance = it }
-        }
-    }
+    private const val TAG = "CastManager"
+    private const val CAST_APP_ID = "CC1AD845"
 
     private var castContext: CastContext? = null
     private var sessionManager: SessionManager? = null
     private var currentSession: CastSession? = null
     private var discoveryListener: DiscoveryListener? = null
     private var sessionListener: SessionListener? = null
+    private var contextRef: Context? = null
 
     interface DiscoveryListener {
         fun onDeviceDiscovered(deviceName: String)
@@ -42,6 +33,7 @@ class CastManager : SessionManagerListener<CastSession> {
     }
 
     fun initialize(context: Context) {
+        contextRef = context
         try {
             castContext = CastContext.getSharedInstance(context)
             sessionManager = castContext?.sessionManager
@@ -71,23 +63,25 @@ class CastManager : SessionManagerListener<CastSession> {
     }
 
     fun castVideo(url: String, title: String = "Video", description: String = "") {
-        currentSession?.let { session ->
-            val remoteMediaClient = session.remoteMediaClient
-            if (remoteMediaClient != null) {
-                val mediaInfo = com.google.android.gms.cast.MediaInfo.Builder(url)
-                    .setStreamType(com.google.android.gms.cast.MediaInfo.STREAM_TYPE_BUFFERED)
-                    .setContentType("video/mp4")
-                    .setMetadata(com.google.android.gms.cast.MediaMetadata(com.google.android.gms.cast.MediaMetadata.MEDIA_TYPE_MOVIE).apply {
-                        putString(com.google.android.gms.cast.MediaMetadata.KEY_TITLE, title)
-                        putString(com.google.android.gms.cast.MediaMetadata.KEY_SUBTITLE, description)
-                    })
-                    .build()
-
-                remoteMediaClient.load(mediaInfo, true, 0)
-                Log.d(TAG, "Casting video: $url")
-            }
-        } ?: run {
+        if (currentSession == null) {
             Log.w(TAG, "No active session to cast video")
+            return
+        }
+        
+        val session = currentSession ?: return
+        val remoteMediaClient = session.remoteMediaClient
+        if (remoteMediaClient != null) {
+            val mediaInfo = com.google.android.gms.cast.MediaInfo.Builder(url)
+                .setStreamType(com.google.android.gms.cast.MediaInfo.STREAM_TYPE_BUFFERED)
+                .setContentType("video/mp4")
+                .setMetadata(com.google.android.gms.cast.MediaMetadata(com.google.android.gms.cast.MediaMetadata.MEDIA_TYPE_MOVIE).apply {
+                    putString(com.google.android.gms.cast.MediaMetadata.KEY_TITLE, title)
+                    putString(com.google.android.gms.cast.MediaMetadata.KEY_SUBTITLE, description)
+                })
+                .build()
+
+            remoteMediaClient.load(mediaInfo, true, 0)
+            Log.d(TAG, "Casting video: $url")
         }
     }
 
@@ -96,16 +90,15 @@ class CastManager : SessionManagerListener<CastSession> {
     }
 
     fun control(action: String, position: Long = 0) {
-        currentSession?.let { session ->
-            val remoteMediaClient = session.remoteMediaClient
-            when (action.lowercase()) {
-                "play" -> remoteMediaClient?.play()
-                "pause" -> remoteMediaClient?.pause()
-                "stop" -> remoteMediaClient?.stop()
-                "seek" -> if (position > 0) remoteMediaClient?.seek(position)
-            }
-            Log.d(TAG, "Control action: $action")
+        val session = currentSession ?: return
+        val remoteMediaClient = session.remoteMediaClient
+        when (action.lowercase()) {
+            "play" -> remoteMediaClient?.play()
+            "pause" -> remoteMediaClient?.pause()
+            "stop" -> remoteMediaClient?.stop()
+            "seek" -> if (position > 0) remoteMediaClient?.seek(position)
         }
+        Log.d(TAG, "Control action: $action")
     }
 
     fun setVolume(volume: Float) {
@@ -121,10 +114,18 @@ class CastManager : SessionManagerListener<CastSession> {
         currentSession = null
     }
 
+    override fun onSessionStarting(session: CastSession) {
+        Log.d(TAG, "Session starting")
+    }
+
     override fun onSessionStarted(session: CastSession, sessionId: String) {
         Log.d(TAG, "Session started: $sessionId")
         currentSession = session
         sessionListener?.onSessionStarted(session)
+    }
+
+    override fun onSessionResuming(session: CastSession, sessionId: String) {
+        Log.d(TAG, "Session resuming: $sessionId")
     }
 
     override fun onSessionResumed(session: CastSession, wasActive: Boolean) {
@@ -138,6 +139,10 @@ class CastManager : SessionManagerListener<CastSession> {
         sessionListener?.onConnectivityChanged(false)
     }
 
+    override fun onSessionEnding(session: CastSession) {
+        Log.d(TAG, "Session ending")
+    }
+
     override fun onSessionEnded(session: CastSession, error: Int) {
         Log.d(TAG, "Session ended, error: $error")
         currentSession = null
@@ -149,10 +154,15 @@ class CastManager : SessionManagerListener<CastSession> {
         sessionListener?.onSessionEnded("Error code: $error")
     }
 
+    override fun onSessionResumeFailed(session: CastSession, error: Int) {
+        Log.e(TAG, "Session resume failed, error: $error")
+    }
+
     fun release() {
         sessionManager?.removeSessionManagerListener(this, CastSession::class.java)
         castContext = null
         sessionManager = null
         currentSession = null
+        contextRef = null
     }
 }
