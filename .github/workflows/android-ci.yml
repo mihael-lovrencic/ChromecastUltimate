@@ -20,6 +20,9 @@ jobs:
           java-version: '21'
           distribution: 'temurin'
 
+      - name: Ensure Gradle wrapper is executable
+        run: chmod +x ./gradlew
+
       - name: Build Dev (Debug) APK
         run: ./gradlew assembleDebug
 

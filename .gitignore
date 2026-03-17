@@ -2,6 +2,7 @@
 build/
 app/build/
 *.iml
+/.vs/
 .idea/
 *.log
 .DS_Store
