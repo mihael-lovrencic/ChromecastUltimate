@@ -2,6 +2,10 @@ package com.example.castultimate
 
 import android.content.Context
 import android.util.Log
+import androidx.mediarouter.media.MediaRouteSelector
+import androidx.mediarouter.media.MediaRouter
+import com.google.android.gms.cast.CastDevice
+import com.google.android.gms.cast.CastMediaControlIntent
 import com.google.android.gms.cast.framework.CastContext
 import com.google.android.gms.cast.framework.CastSession
 import com.google.android.gms.cast.framework.SessionManager
@@ -18,6 +22,26 @@ object CastManager : SessionManagerListener<CastSession> {
     private var discoveryListener: DiscoveryListener? = null
     private var sessionListener: SessionListener? = null
     private var contextRef: Context? = null
+    private var mediaRouter: MediaRouter? = null
+    private var routeSelector: MediaRouteSelector? = null
+    private val knownRoutes = mutableSetOf<String>()
+
+    private val routerCallback = object : MediaRouter.Callback() {
+        override fun onRouteAdded(router: MediaRouter, route: MediaRouter.RouteInfo) {
+            maybeNotifyRouteAdded(route)
+        }
+
+        override fun onRouteChanged(router: MediaRouter, route: MediaRouter.RouteInfo) {
+            maybeNotifyRouteAdded(route)
+        }
+
+        override fun onRouteRemoved(router: MediaRouter, route: MediaRouter.RouteInfo) {
+            val deviceName = getDeviceName(route) ?: return
+            if (knownRoutes.remove(deviceName)) {
+                discoveryListener?.onDeviceRemoved(deviceName)
+            }
+        }
+    }
 
     interface DiscoveryListener {
         fun onDeviceDiscovered(deviceName: String)
@@ -38,6 +62,10 @@ object CastManager : SessionManagerListener<CastSession> {
             castContext = CastContext.getSharedInstance(context)
             sessionManager = castContext?.sessionManager
             sessionManager?.addSessionManagerListener(this, CastSession::class.java)
+            mediaRouter = MediaRouter.getInstance(context)
+            routeSelector = MediaRouteSelector.Builder()
+                .addControlCategory(CastMediaControlIntent.categoryForCast(CAST_APP_ID))
+                .build()
             Log.d(TAG, "CastManager initialized")
         } catch (e: Exception) {
             Log.e(TAG, "Failed to initialize CastContext", e)
@@ -54,11 +82,25 @@ object CastManager : SessionManagerListener<CastSession> {
 
     fun startDiscovery() {
         discoveryListener?.onDiscoveryStarted()
+        val router = mediaRouter
+        val selector = routeSelector
+        if (router != null && selector != null) {
+            router.addCallback(
+                selector,
+                routerCallback,
+                MediaRouter.CALLBACK_FLAG_REQUEST_DISCOVERY or MediaRouter.CALLBACK_FLAG_PERFORM_ACTIVE_SCAN
+            )
+            Log.d(TAG, "MediaRouter discovery started")
+        } else {
+            Log.w(TAG, "MediaRouter not initialized for discovery")
+        }
         Log.d(TAG, "Discovery started")
     }
 
     fun stopDiscovery() {
         discoveryListener?.onDiscoveryStopped()
+        mediaRouter?.removeCallback(routerCallback)
+        knownRoutes.clear()
         Log.d(TAG, "Discovery stopped")
     }
 
@@ -162,9 +204,26 @@ object CastManager : SessionManagerListener<CastSession> {
 
     fun release() {
         sessionManager?.removeSessionManagerListener(this, CastSession::class.java)
+        mediaRouter?.removeCallback(routerCallback)
         castContext = null
         sessionManager = null
         currentSession = null
         contextRef = null
+        mediaRouter = null
+        routeSelector = null
+        knownRoutes.clear()
+    }
+
+    private fun maybeNotifyRouteAdded(route: MediaRouter.RouteInfo) {
+        val deviceName = getDeviceName(route) ?: return
+        if (knownRoutes.add(deviceName)) {
+            discoveryListener?.onDeviceDiscovered(deviceName)
+        }
+    }
+
+    private fun getDeviceName(route: MediaRouter.RouteInfo): String? {
+        val extras = route.extras ?: return null
+        val device = CastDevice.getFromBundle(extras) ?: return null
+        return device.friendlyName ?: route.name
     }
 }
