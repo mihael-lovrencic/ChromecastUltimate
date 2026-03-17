@@ -4,6 +4,7 @@ plugins {
 }
 
 tasks.register("printVersionName") {
+    notCompatibleWithConfigurationCache("Reads Android extension at execution time")
     doLast {
         def androidExt = project(":app").extensions.getByName("android")
         println(androidExt.defaultConfig.versionName)
@@ -11,6 +12,7 @@ tasks.register("printVersionName") {
 }
 
 tasks.register("printVersionCode") {
+    notCompatibleWithConfigurationCache("Reads Android extension at execution time")
     doLast {
         def androidExt = project(":app").extensions.getByName("android")
         println(androidExt.defaultConfig.versionCode)
