@@ -27,7 +27,6 @@ class MainActivity : AppCompatActivity(),
     private lateinit var toolbar: MaterialToolbar
     private lateinit var versionText: TextView
 
-    private var server: CastServer? = null
     private var serverRunning = false
 
     override fun onCreate(savedInstanceState: Bundle?) {
@@ -50,8 +49,6 @@ class MainActivity : AppCompatActivity(),
         versionText.text = "v$installedVersion"
 
         CastManager.initialize(this)
-        CastManager.setDiscoveryListener(this)
-        CastManager.setSessionListener(this)
 
         AppUpdater.setUpdateListener(this)
 
@@ -79,23 +76,21 @@ class MainActivity : AppCompatActivity(),
         }
 
         AppUpdater.checkForUpdate(this)
+
+        // Keep the server available for the Firefox extension.
+        if (!CastServerService.isRunning()) {
+            startServer()
+        } else {
+            serverRunning = true
+            serverButton.text = "Stop Server"
+            serverStatusText.text = "Server: Running on port 5000"
+            setServerStatus(true)
+        }
     }
 
     private fun startServer() {
         try {
-            server = CastServer(5000, object : CastServer.MirrorController {
-                override fun requestMirror(url: String?): Boolean {
-                    if (MediaProjectionManager.isCapturing()) {
-                        return true
-                    }
-                    runOnUiThread {
-                        MediaProjectionManager.setProjectionCallback(this@MainActivity)
-                        MediaProjectionManager.startScreenCapture(this@MainActivity)
-                    }
-                    return true
-                }
-            })
-            server?.start()
+            CastServerService.start(this)
             serverRunning = true
             serverButton.text = "Stop Server"
             serverStatusText.text = "Server: Running on port 5000"
@@ -108,8 +103,7 @@ class MainActivity : AppCompatActivity(),
 
     private fun stopServer() {
         try {
-            server?.stop()
-            server = null
+            CastServerService.stop(this)
             serverRunning = false
             serverButton.text = "Start Server"
             serverStatusText.text = "Server: Stopped"
@@ -130,6 +124,30 @@ class MainActivity : AppCompatActivity(),
 
     private fun updateStatus(message: String) {
         statusText.text = message
+    }
+
+    override fun onStart() {
+        super.onStart()
+        CastManager.setDiscoveryListener(this)
+        CastManager.setSessionListener(this)
+        CastServerService.setMirrorHandler {
+            if (MediaProjectionManager.isCapturing()) {
+                true
+            } else {
+                runOnUiThread {
+                    MediaProjectionManager.setProjectionCallback(this@MainActivity)
+                    MediaProjectionManager.startScreenCapture(this@MainActivity)
+                }
+                true
+            }
+        }
+    }
+
+    override fun onStop() {
+        super.onStop()
+        CastServerService.setMirrorHandler(null)
+        CastManager.setDiscoveryListener(null)
+        CastManager.setSessionListener(null)
     }
 
     override fun onUpdateAvailable(version: String, downloadUrl: String, releaseNotes: String?) {
@@ -235,10 +253,9 @@ class MainActivity : AppCompatActivity(),
 
     override fun onDestroy() {
         super.onDestroy()
-        if (serverRunning) {
-            stopServer()
+        if (!CastServerService.isRunning()) {
+            CastManager.release()
         }
-        CastManager.release()
         if (MediaProjectionManager.isCapturing()) {
             MediaProjectionManager.stopCapture()
         }

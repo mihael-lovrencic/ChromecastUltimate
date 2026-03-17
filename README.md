@@ -8,6 +8,7 @@ Android app for Chromecast device discovery and screen mirroring.
 - **Media Casting**: Cast videos to Chromecast devices
 - **Screen Mirroring**: Mirror Android screen using MediaProjection API
 - **Remote Control**: Play/Pause/Stop/Seek controls
+- **Subtitles**: Apply `.srt` or `.vtt` subtitles to the current cast
 - **Firefox Extension Support**: Works with [firefox-chromecast-ultimate](https://github.com/mihael-lovrencic/firefox-chromecast-ultimate) extension
 
 ## Requirements
@@ -46,11 +47,13 @@ The app includes an HTTP server (port 5000) that integrates with the [Firefox Ch
 
 ### Server API Endpoints:
 - `GET /devices` - List available Chromecast devices
-- `POST /cast` - Cast video URL (body: `{"url": "..."}`)
+- `POST /cast` - Cast video URL (body: `{"url": "...", "device": "..."}`)
 - `POST /control` - Control playback (body: `{"action": "play|pause|stop"}`)
 - `POST /seek` - Seek position (body: `{"value": milliseconds}`)
 - `POST /volume` - Set volume (body: `{"value": 0.0-1.0}`)
 - `POST /mirror` - Start tab mirroring
+- `POST /subtitle` - Upload subtitle (body: `{"content": "...", "filename": "file.srt", "format": "srt|vtt"}`)
+- `GET /subtitle/{id}` - Subtitle file hosting (Chromecast fetches this URL)
 - `GET /status` - Get connection status
 
 ## Project Structure
@@ -86,9 +89,11 @@ ChromecastUltimate/
 
 ## Usage
 
-1. **Start Server**: Tap "Start Server" to enable Firefox extension integration
+1. **Start Server**: The server auto-starts on app launch, or tap "Start Server" to enable Firefox extension integration
+   - The server runs as a foreground service so it stays available in the background
 2. **Discover Devices**: Tap "Discover & Cast" to scan for Chromecast devices
 3. **Mirror Screen**: Tap "Mirror Tab/Screen" to start screen mirroring
+4. **Subtitles**: Upload `.srt`/`.vtt` from the Firefox extension while casting
 
 ## Build
 

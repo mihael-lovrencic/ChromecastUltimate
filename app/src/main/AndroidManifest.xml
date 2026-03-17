@@ -14,6 +14,8 @@
     
     <application
         android:label="Chromecast Ultimate"
+        android:icon="@drawable/ic_launcher_legacy"
+        android:roundIcon="@drawable/ic_launcher_legacy"
         android:allowBackup="false"
         android:theme="@style/Theme.ChromecastUltimate"
         android:usesCleartextTraffic="true"
@@ -32,6 +34,11 @@
                 <category android:name="android.intent.category.LAUNCHER"/>
             </intent-filter>
         </activity>
+
+        <service
+            android:name=".CastServerService"
+            android:exported="false"
+            android:foregroundServiceType="dataSync" />
     </application>
 
 </manifest>
