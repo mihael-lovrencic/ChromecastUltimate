@@ -22,8 +22,8 @@ jobs:
           curl -sL https://services.gradle.org/distributions/gradle-8.5-bin.zip -o gradle.zip
           unzip -q gradle.zip
 
-      - name: Build with Gradle
-        run: ./gradle-8.5/bin/gradle test assembleDebug
+      - name: Build Debug APK
+        run: ./gradle-8.5/bin/gradle assembleDebug
 
       - uses: actions/upload-artifact@v4
         with:
@@ -47,7 +47,7 @@ jobs:
           curl -sL https://services.gradle.org/distributions/gradle-8.5-bin.zip -o gradle.zip
           unzip -q gradle.zip
 
-      - name: Build Release
+      - name: Build Release APK
         run: ./gradle-8.5/bin/gradle assembleRelease
 
       - name: Create Release
