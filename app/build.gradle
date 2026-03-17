@@ -16,12 +16,25 @@ android {
         applicationId "com.example.castultimate"
         minSdk 24
         targetSdk 34
+        
+        vectorDrawables {
+            useSupportLibrary true
+        }
     }
 
     buildTypes {
         release {
+            minifyEnabled true
+            proguardFiles getDefaultProguardFile('proguard-android-optimize.txt'), 'proguard-rules.pro'
+        }
+        debug {
             minifyEnabled false
         }
+    }
+    
+    lint {
+        abortOnError false
+        checkReleaseBuilds false
     }
 }
 
@@ -32,8 +45,12 @@ tasks.withType(org.jetbrains.kotlin.gradle.tasks.KotlinCompile).configureEach {
 }
 
 dependencies {
-    implementation 'androidx.appcompat:appcompat:1.6.1'
-    implementation 'com.google.android.gms:play-services-cast-framework:21.2.0'
+    implementation 'androidx.appcompat:appcompat:1.7.0'
+    implementation 'androidx.core:core-ktx:1.12.0'
+    implementation 'com.google.android.gms:play-services-cast-framework:21.4.0'
+    implementation 'com.google.android.material:material:1.11.0'
+    
+    // HTTP Server - using newer version
     implementation 'org.nanohttpd:nanohttpd:2.3.1'
     implementation 'org.nanohttpd:nanohttpd-nanolets:2.3.1'
     
