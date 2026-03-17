@@ -4,9 +4,12 @@ import android.content.Intent
 import android.content.SharedPreferences
 import android.graphics.drawable.GradientDrawable
 import android.os.Bundle
+import android.os.Build
 import android.view.View
 import android.widget.TextView
 import android.widget.Toast
+import androidx.core.app.ActivityCompat
+import androidx.core.content.ContextCompat
 import androidx.appcompat.app.AlertDialog
 import androidx.appcompat.app.AppCompatActivity
 import com.google.android.material.slider.Slider
@@ -34,6 +37,7 @@ class MainActivity : AppCompatActivity(),
 
     private val PREFS_NAME = "cast_ultimate"
     private val KEY_DISCOVERY_SECONDS = "discovery_seconds"
+    private val REQUEST_DISCOVERY_PERMS = 1001
 
     private var serverRunning = false
 
@@ -72,6 +76,10 @@ class MainActivity : AppCompatActivity(),
         }
 
         castButton.setOnClickListener {
+            if (!ensureDiscoveryPermissions()) {
+                updateStatus("Grant Nearby Devices permission to discover Cast devices")
+                return@setOnClickListener
+            }
             CastManager.startDiscovery()
             updateStatus("Searching for Chromecast devices...")
         }
@@ -108,6 +116,8 @@ class MainActivity : AppCompatActivity(),
             serverStatusText.text = "Server: Running on port 5000"
             setServerStatus(true)
         }
+
+        ensureDiscoveryPermissions()
     }
 
     private fun startServer() {
@@ -210,6 +220,48 @@ class MainActivity : AppCompatActivity(),
         super.onActivityResult(requestCode, resultCode, data)
         if (requestCode == MediaProjectionManager.REQUEST_CODE_SCREEN_CAPTURE) {
             MediaProjectionManager.onActivityResult(this, requestCode, resultCode, data)
+        }
+    }
+
+    override fun onRequestPermissionsResult(
+        requestCode: Int,
+        permissions: Array<out String>,
+        grantResults: IntArray
+    ) {
+        super.onRequestPermissionsResult(requestCode, permissions, grantResults)
+        if (requestCode == REQUEST_DISCOVERY_PERMS) {
+            if (hasDiscoveryPermission()) {
+                updateStatus("Permissions granted. Tap Discover & Cast.")
+            } else {
+                updateStatus("Permissions denied. Discovery may not work.")
+            }
+        }
+    }
+
+    private fun ensureDiscoveryPermissions(): Boolean {
+        if (hasDiscoveryPermission()) return true
+
+        val perms = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
+            arrayOf(android.Manifest.permission.NEARBY_WIFI_DEVICES)
+        } else {
+            arrayOf(android.Manifest.permission.ACCESS_FINE_LOCATION)
+        }
+
+        ActivityCompat.requestPermissions(this, perms, REQUEST_DISCOVERY_PERMS)
+        return false
+    }
+
+    private fun hasDiscoveryPermission(): Boolean {
+        return if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
+            ContextCompat.checkSelfPermission(
+                this,
+                android.Manifest.permission.NEARBY_WIFI_DEVICES
+            ) == android.content.pm.PackageManager.PERMISSION_GRANTED
+        } else {
+            ContextCompat.checkSelfPermission(
+                this,
+                android.Manifest.permission.ACCESS_FINE_LOCATION
+            ) == android.content.pm.PackageManager.PERMISSION_GRANTED
         }
     }
 
