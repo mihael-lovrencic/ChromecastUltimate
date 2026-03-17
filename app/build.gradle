@@ -65,13 +65,15 @@ tasks.withType(org.jetbrains.kotlin.gradle.tasks.KotlinCompile).configureEach {
 
 tasks.register("printVersionName") {
     doLast {
-        println(android.defaultConfig.versionName)
+        def androidExt = project.extensions.getByName("android")
+        println(androidExt.defaultConfig.versionName)
     }
 }
 
 tasks.register("printVersionCode") {
     doLast {
-        println(android.defaultConfig.versionCode)
+        def androidExt = project.extensions.getByName("android")
+        println(androidExt.defaultConfig.versionCode)
     }
 }
 
