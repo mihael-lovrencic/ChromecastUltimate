@@ -49,6 +49,8 @@ jobs:
       SIGNING_STORE_PASSWORD: ${{ secrets.ANDROID_KEYSTORE_PASSWORD }}
       SIGNING_KEY_ALIAS: ${{ secrets.ANDROID_KEY_ALIAS }}
       SIGNING_KEY_PASSWORD: ${{ secrets.ANDROID_KEY_PASSWORD }}
+      VERSION_NAME: ${{ github.event.inputs.version_name || '0.0.0' }}
+      VERSION_CODE: ${{ github.event.inputs.version_code || '1' }}
     steps:
       - uses: actions/checkout@v5
 
@@ -67,10 +69,10 @@ jobs:
         run: echo "$ANDROID_KEYSTORE_BASE64" | base64 --decode > "$SIGNING_STORE_FILE"
 
       - name: Build Dev (Debug) APK
-        run: ./gradlew assembleDebug -PversionNameOverride=${{ env.VERSION_NAME }} -PversionCodeOverride=${{ env.VERSION_CODE }}
+        run: ./gradlew assembleDebug
 
       - name: Build Production (Release) APK
-        run: ./gradlew assembleRelease -PversionNameOverride=${{ env.VERSION_NAME }} -PversionCodeOverride=${{ env.VERSION_CODE }}
+        run: ./gradlew assembleRelease
 
       - name: Read Version Info
         id: version
