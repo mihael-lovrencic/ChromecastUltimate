@@ -29,6 +29,7 @@ class MainActivity : AppCompatActivity(),
     private lateinit var mirrorButton: MaterialButton
     private lateinit var serverButton: MaterialButton
     private lateinit var updateButton: MaterialButton
+    private lateinit var stopCastButton: MaterialButton
     private lateinit var statusText: TextView
     private lateinit var serverStatusText: TextView
     private lateinit var serverStatusIndicator: View
@@ -37,6 +38,10 @@ class MainActivity : AppCompatActivity(),
     private lateinit var discoveryLabel: TextView
     private lateinit var discoverySlider: Slider
     private lateinit var deviceListText: TextView
+    private lateinit var deviceCountText: TextView
+    private lateinit var castingCard: View
+    private lateinit var castingDeviceText: TextView
+    private lateinit var castingTitleText: TextView
     private val discoveredDevices = linkedSetOf<String>()
     private lateinit var prefs: SharedPreferences
 
@@ -57,6 +62,7 @@ class MainActivity : AppCompatActivity(),
         mirrorButton = findViewById(R.id.mirrorButton)
         serverButton = findViewById(R.id.serverButton)
         updateButton = findViewById(R.id.updateButton)
+        stopCastButton = findViewById(R.id.stopCastButton)
         statusText = findViewById(R.id.statusText)
         serverStatusText = findViewById(R.id.serverStatusText)
         serverStatusIndicator = findViewById(R.id.serverStatusIndicator)
@@ -64,6 +70,10 @@ class MainActivity : AppCompatActivity(),
         discoveryLabel = findViewById(R.id.discoveryLabel)
         discoverySlider = findViewById(R.id.discoverySlider)
         deviceListText = findViewById(R.id.deviceListText)
+        deviceCountText = findViewById(R.id.deviceCountText)
+        castingCard = findViewById(R.id.castingCard)
+        castingDeviceText = findViewById(R.id.castingDeviceText)
+        castingTitleText = findViewById(R.id.castingTitleText)
         prefs = getSharedPreferences(PREFS_NAME, MODE_PRIVATE)
 
         val installedVersion = AppUpdater.getInstalledVersionDisplay(this)
@@ -83,16 +93,16 @@ class MainActivity : AppCompatActivity(),
 
         castButton.setOnClickListener {
             if (!ensureDiscoveryPermissions()) {
-                updateStatus("Grant Nearby Devices permission to discover Cast devices")
+                showError("Grant Nearby Devices permission to discover Cast devices")
                 return@setOnClickListener
             }
             if (!isLocationEnabled()) {
-                updateStatus("Enable Location Services to discover Cast devices")
+                showError("Enable Location Services to discover Cast devices")
                 return@setOnClickListener
             }
             val playServicesStatus = GoogleApiAvailability.getInstance().isGooglePlayServicesAvailable(this)
             if (playServicesStatus != ConnectionResult.SUCCESS) {
-                updateStatus("Google Play services missing or outdated (code: $playServicesStatus)")
+                showError("Google Play services missing or outdated (code: $playServicesStatus)")
                 return@setOnClickListener
             }
 
@@ -101,13 +111,25 @@ class MainActivity : AppCompatActivity(),
                 updateStatus("Searching for Chromecast devices...")
             } else {
                 val error = CastManager.getLastInitError()
-                updateStatus(error ?: "Cast framework not available. Update Google Play Services.")
+                showError(error ?: "Cast framework not available. Update Google Play Services.")
             }
         }
 
         mirrorButton.setOnClickListener {
             MediaProjectionManager.setProjectionCallback(this)
             MediaProjectionManager.startScreenCapture(this)
+        }
+        
+        stopCastButton.setOnClickListener {
+            CastManager.control("stop")
+            updateStatus("Casting stopped")
+            Toast.makeText(this, "Casting stopped", Toast.LENGTH_SHORT).show()
+        }
+        
+        CastManager.addCastingStateListener { state ->
+            runOnUiThread {
+                updateCastingCard(state)
+            }
         }
 
         updateButton.setOnClickListener {
@@ -178,6 +200,15 @@ class MainActivity : AppCompatActivity(),
     private fun updateStatus(message: String) {
         statusText.text = message
     }
+    
+    private fun showError(message: String) {
+        statusText.text = message
+        Toast.makeText(this, message, Toast.LENGTH_LONG).show()
+    }
+    
+    private fun showSuccess(message: String) {
+        Toast.makeText(this, message, Toast.LENGTH_SHORT).show()
+    }
 
     override fun onStart() {
         super.onStart()
@@ -233,7 +264,7 @@ class MainActivity : AppCompatActivity(),
             intent.data = android.net.Uri.parse(url)
             startActivity(intent)
         } catch (e: Exception) {
-            updateStatus("Failed to open download: ${e.message}")
+            showError("Failed to open download: ${e.message}")
         }
     }
 
@@ -329,7 +360,13 @@ class MainActivity : AppCompatActivity(),
 
     override fun onSessionEnded(error: String?) {
         runOnUiThread {
-            updateStatus("Disconnected: $error")
+            val message = when {
+                error?.contains("2147953929") == true -> "Connection lost. Check your network."
+                error?.contains("15") == true -> "Failed to connect. Make sure the device is available."
+                error != null -> "Disconnected: $error"
+                else -> "Disconnected from Chromecast"
+            }
+            updateStatus(message)
         }
     }
 
@@ -353,15 +390,30 @@ class MainActivity : AppCompatActivity(),
 
     override fun onError(error: String) {
         runOnUiThread {
-            updateStatus("Error: $error")
+            showError("Error: $error")
         }
     }
 
     private fun updateDeviceList() {
         if (discoveredDevices.isEmpty()) {
-            deviceListText.text = "No devices yet"
+            deviceListText.text = "Tap Discover to find devices"
         } else {
             deviceListText.text = discoveredDevices.joinToString(separator = "\n")
+        }
+        deviceCountText.text = discoveredDevices.size.toString()
+    }
+    
+    private fun updateCastingCard(state: CastManager.CastingState) {
+        if (state.isCasting) {
+            castingCard.visibility = View.VISIBLE
+            castingDeviceText.text = state.deviceName ?: "Chromecast"
+            castingTitleText.text = state.title ?: state.mediaUrl ?: "Casting..."
+            castButton.text = "Discover & Cast"
+            castButton.isEnabled = false
+        } else {
+            castingCard.visibility = View.GONE
+            castButton.text = "Discover & Cast"
+            castButton.isEnabled = true
         }
     }
 

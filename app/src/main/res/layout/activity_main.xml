@@ -116,6 +116,86 @@
             style="@style/Widget.Material3.Button.TonalButton" />
 
         <com.google.android.material.card.MaterialCardView
+            android:id="@+id/castingCard"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:layout_marginTop="12dp"
+            android:visibility="gone"
+            app:cardCornerRadius="12dp"
+            app:cardElevation="4dp"
+            app:strokeColor="@color/primary"
+            app:strokeWidth="2dp">
+
+            <LinearLayout
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:orientation="vertical"
+                android:padding="16dp">
+
+                <LinearLayout
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:orientation="horizontal"
+                    android:gravity="center_vertical">
+
+                    <ImageView
+                        android:layout_width="24dp"
+                        android:layout_height="24dp"
+                        android:src="@android:drawable/ic_media_play"
+                        app:tint="@color/primary" />
+
+                    <TextView
+                        android:layout_width="0dp"
+                        android:layout_height="wrap_content"
+                        android:layout_weight="1"
+                        android:layout_marginStart="12dp"
+                        android:text="Now Casting"
+                        android:textStyle="bold"
+                        android:textSize="14sp"
+                        android:textColor="@color/primary" />
+
+                    <TextView
+                        android:id="@+id/castingDeviceText"
+                        android:layout_width="wrap_content"
+                        android:layout_height="wrap_content"
+                        android:text="Chromecast"
+                        android:textSize="12sp"
+                        android:textColor="@color/text_secondary" />
+                </LinearLayout>
+
+                <TextView
+                    android:id="@+id/castingTitleText"
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:layout_marginTop="8dp"
+                    android:text="Video Title"
+                    android:textSize="14sp"
+                    android:ellipsize="end"
+                    android:maxLines="1" />
+
+                <LinearLayout
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:layout_marginTop="12dp"
+                    android:orientation="horizontal"
+                    android:gravity="center">
+
+                    <com.google.android.material.button.MaterialButton
+                        android:id="@+id/stopCastButton"
+                        android:layout_width="wrap_content"
+                        android:layout_height="40dp"
+                        android:text="Stop"
+                        app:icon="@android:drawable/ic_menu_close_clear_cancel"
+                        app:iconGravity="start"
+                        app:cornerRadius="20dp"
+                        style="@style/Widget.Material3.Button.TonalButton" />
+                </LinearLayout>
+
+            </LinearLayout>
+
+        </com.google.android.material.card.MaterialCardView>
+
+        <com.google.android.material.card.MaterialCardView
             android:layout_width="match_parent"
             android:layout_height="wrap_content"
             android:layout_marginTop="12dp"
@@ -128,21 +208,37 @@
                 android:orientation="vertical"
                 android:padding="12dp">
 
-                <TextView
-                    android:id="@+id/deviceListTitle"
-                    android:layout_width="wrap_content"
+                <LinearLayout
+                    android:layout_width="match_parent"
                     android:layout_height="wrap_content"
-                    android:text="Discovered Devices"
-                    android:textStyle="bold"
-                    android:textSize="13sp"
-                    android:textColor="@color/text_secondary" />
+                    android:orientation="horizontal"
+                    android:gravity="center_vertical">
+
+                    <TextView
+                        android:layout_width="0dp"
+                        android:layout_height="wrap_content"
+                        android:layout_weight="1"
+                        android:text="Discovered Devices"
+                        android:textStyle="bold"
+                        android:textSize="13sp"
+                        android:textColor="@color/text_secondary" />
+
+                    <TextView
+                        android:id="@+id/deviceCountText"
+                        android:layout_width="wrap_content"
+                        android:layout_height="wrap_content"
+                        android:text="0"
+                        android:textSize="12sp"
+                        android:textColor="@color/primary"
+                        android:textStyle="bold" />
+                </LinearLayout>
 
                 <TextView
                     android:id="@+id/deviceListText"
                     android:layout_width="match_parent"
                     android:layout_height="wrap_content"
                     android:layout_marginTop="6dp"
-                    android:text="No devices yet"
+                    android:text="Tap Discover to find devices"
                     android:textSize="12sp"
                     android:textColor="@color/text_secondary" />
 

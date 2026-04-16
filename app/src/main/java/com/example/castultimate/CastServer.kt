@@ -321,11 +321,18 @@ class CastServer(
 
     private fun handleStatus(headOnly: Boolean): Response {
         return try {
+            val state = CastManager.syncMediaState()
             val status = JSONObject().apply {
                 put("connected", CastManager.isConnected())
-                put("volume", CastManager.getVolume())
-                put("positionMs", CastManager.getPositionMs())
-                put("durationMs", CastManager.getDurationMs())
+                put("casting", state.isCasting)
+                put("device", state.deviceName ?: "")
+                put("deviceId", state.deviceId ?: "")
+                put("mediaUrl", state.mediaUrl ?: "")
+                put("title", state.title ?: "")
+                put("volume", state.volume)
+                put("positionMs", state.positionMs)
+                put("durationMs", state.durationMs)
+                put("playerState", state.playerState.name.lowercase())
             }
             val body = if (headOnly) "" else status.toString()
             newFixedLengthResponse(Response.Status.OK, MIME_JSON, body)

@@ -34,6 +34,40 @@ object CastManager : SessionManagerListener<CastSession> {
     private var lastInitError: String? = null
     data class DeviceInfo(val id: String, val name: String)
 
+    data class CastingState(
+        val isCasting: Boolean = false,
+        val deviceName: String? = null,
+        val deviceId: String? = null,
+        val mediaUrl: String? = null,
+        val title: String? = null,
+        val positionMs: Long = 0L,
+        val durationMs: Long = 0L,
+        val volume: Float = 1.0f,
+        val playerState: PlayerState = PlayerState.IDLE
+    )
+
+    enum class PlayerState {
+        IDLE, BUFFERING, PLAYING, PAUSED, STOPPED
+    }
+
+    private var castingState = CastingState()
+    private val castingStateListeners = mutableListOf<(CastingState) -> Unit>()
+
+    fun addCastingStateListener(listener: (CastingState) -> Unit) {
+        castingStateListeners.add(listener)
+    }
+
+    fun removeCastingStateListener(listener: (CastingState) -> Unit) {
+        castingStateListeners.remove(listener)
+    }
+
+    private fun updateCastingState(update: CastingState.() -> CastingState) {
+        castingState = update(castingState)
+        castingStateListeners.forEach { it(castingState) }
+    }
+
+    fun getCastingState(): CastingState = castingState
+
     private val knownRoutes = mutableMapOf<String, MediaRouter.RouteInfo>()
     private var discoveryActive = false
     private val mainHandler = Handler(Looper.getMainLooper())
@@ -183,14 +217,34 @@ object CastManager : SessionManagerListener<CastSession> {
     fun castVideo(url: String, title: String = "Video", description: String = "") {
         if (currentSession == null) {
             Log.w(TAG, "No active session to cast video")
+            updateCastingState {
+                copy(isCasting = false, playerState = PlayerState.IDLE)
+            }
             return
         }
-        
+
+        val sessionDevice = currentSession
+        val deviceName = sessionDevice?.castDevice?.friendlyName ?: "Chromecast"
+        val deviceId = sessionDevice?.castDevice?.deviceId ?: ""
+
+        updateCastingState {
+            copy(
+                isCasting = true,
+                deviceName = deviceName,
+                deviceId = deviceId,
+                mediaUrl = url,
+                title = title,
+                positionMs = 0L,
+                durationMs = 0L,
+                playerState = PlayerState.BUFFERING
+            )
+        }
+
         val session = currentSession ?: return
         val remoteMediaClient = session.remoteMediaClient
         if (remoteMediaClient != null) {
-            val mediaInfo = com.google.android.gms.cast.MediaInfo.Builder(url)
-                .setStreamType(com.google.android.gms.cast.MediaInfo.STREAM_TYPE_BUFFERED)
+            val mediaInfo = MediaInfo.Builder(url)
+                .setStreamType(MediaInfo.STREAM_TYPE_BUFFERED)
                 .setContentType("video/mp4")
                 .setMetadata(com.google.android.gms.cast.MediaMetadata(com.google.android.gms.cast.MediaMetadata.MEDIA_TYPE_MOVIE).apply {
                     putString(com.google.android.gms.cast.MediaMetadata.KEY_TITLE, title)
@@ -246,6 +300,17 @@ object CastManager : SessionManagerListener<CastSession> {
 
             remoteMediaClient.load(mediaInfo, options)
             Log.d(TAG, "Casting video with subtitles: $url")
+
+            val deviceName = currentSession?.castDevice?.friendlyName ?: "Chromecast"
+            updateCastingState {
+                copy(
+                    isCasting = true,
+                    deviceName = deviceName,
+                    mediaUrl = url,
+                    title = title,
+                    playerState = PlayerState.BUFFERING
+                )
+            }
         }
     }
 
@@ -258,9 +323,27 @@ object CastManager : SessionManagerListener<CastSession> {
         val session = currentSession ?: return
         val remoteMediaClient = session.remoteMediaClient
         when (action.lowercase()) {
-            "play" -> remoteMediaClient?.play()
-            "pause" -> remoteMediaClient?.pause()
-            "stop" -> remoteMediaClient?.stop()
+            "play" -> {
+                remoteMediaClient?.play()
+                updateCastingState { copy(playerState = PlayerState.PLAYING) }
+            }
+            "pause" -> {
+                remoteMediaClient?.pause()
+                updateCastingState { copy(playerState = PlayerState.PAUSED) }
+            }
+            "stop" -> {
+                remoteMediaClient?.stop()
+                updateCastingState {
+                    copy(
+                        isCasting = false,
+                        mediaUrl = null,
+                        title = null,
+                        positionMs = 0L,
+                        durationMs = 0L,
+                        playerState = PlayerState.STOPPED
+                    )
+                }
+            }
             "seek" -> if (position > 0) remoteMediaClient?.seek(position)
         }
         Log.d(TAG, "Control action: $action")
@@ -268,6 +351,7 @@ object CastManager : SessionManagerListener<CastSession> {
 
     fun setVolume(volume: Float) {
         currentSession?.setVolume(volume.toDouble())
+        updateCastingState { copy(volume = volume) }
     }
 
     fun getVolume(): Double = currentSession?.volume ?: 0.0
@@ -276,12 +360,56 @@ object CastManager : SessionManagerListener<CastSession> {
 
     fun getPositionMs(): Long {
         val remote = currentSession?.remoteMediaClient ?: return 0L
-        return remote.mediaStatus?.streamPosition ?: 0L
+        val pos = remote.mediaStatus?.streamPosition ?: 0L
+        updateCastingState { copy(positionMs = pos) }
+        return pos
     }
 
     fun getDurationMs(): Long {
         val remote = currentSession?.remoteMediaClient ?: return 0L
-        return remote.mediaStatus?.mediaInfo?.streamDuration ?: 0L
+        val dur = remote.mediaStatus?.mediaInfo?.streamDuration ?: 0L
+        updateCastingState { copy(durationMs = dur) }
+        return dur
+    }
+
+    @Suppress("DEPRECATION")
+    fun syncMediaState(): CastingState {
+        val remote = currentSession?.remoteMediaClient
+        val status = remote?.mediaStatus
+
+        if (status == null) {
+            return castingState
+        }
+
+        val mediaInfo = status.mediaInfo
+        val playerState = when (status.playerState) {
+            com.google.android.gms.cast.MediaStatus.PLAYER_STATE_PLAYING -> PlayerState.PLAYING
+            com.google.android.gms.cast.MediaStatus.PLAYER_STATE_BUFFERING -> PlayerState.BUFFERING
+            com.google.android.gms.cast.MediaStatus.PLAYER_STATE_PAUSED -> PlayerState.PAUSED
+            com.google.android.gms.cast.MediaStatus.PLAYER_STATE_IDLE -> PlayerState.IDLE
+            else -> PlayerState.IDLE
+        }
+
+        val isCasting = status.playerState != com.google.android.gms.cast.MediaStatus.PLAYER_STATE_IDLE
+            || mediaInfo != null
+
+        updateCastingState {
+            copy(
+                isCasting = isCasting,
+                positionMs = status.streamPosition,
+                durationMs = mediaInfo?.streamDuration ?: 0L,
+                mediaUrl = mediaInfo?.contentId,
+                title = mediaInfo?.metadata?.getString(com.google.android.gms.cast.MediaMetadata.KEY_TITLE),
+                playerState = playerState,
+                volume = currentSession?.volume?.toFloat() ?: 1.0f
+            )
+        }
+
+        return castingState
+    }
+
+    fun getCurrentDeviceName(): String? {
+        return currentSession?.castDevice?.friendlyName
     }
 
     @Suppress("DEPRECATION")
@@ -330,6 +458,14 @@ object CastManager : SessionManagerListener<CastSession> {
     override fun onSessionStarted(session: CastSession, sessionId: String) {
         Log.d(TAG, "Session started: $sessionId")
         currentSession = session
+        updateCastingState {
+            copy(
+                deviceName = session.castDevice?.friendlyName,
+                deviceId = session.castDevice?.deviceId,
+                isCasting = false,
+                playerState = PlayerState.IDLE
+            )
+        }
         sessionListener?.onSessionStarted(session)
     }
 
@@ -340,6 +476,9 @@ object CastManager : SessionManagerListener<CastSession> {
     override fun onSessionResumed(session: CastSession, wasActive: Boolean) {
         Log.d(TAG, "Session resumed, wasActive: $wasActive")
         currentSession = session
+        updateCastingState {
+            copy(deviceName = session.castDevice?.friendlyName)
+        }
         sessionListener?.onConnectivityChanged(true)
     }
 
@@ -355,6 +494,18 @@ object CastManager : SessionManagerListener<CastSession> {
     override fun onSessionEnded(session: CastSession, error: Int) {
         Log.d(TAG, "Session ended, error: $error")
         currentSession = null
+        updateCastingState {
+            copy(
+                isCasting = false,
+                deviceName = null,
+                deviceId = null,
+                mediaUrl = null,
+                title = null,
+                positionMs = 0L,
+                durationMs = 0L,
+                playerState = PlayerState.IDLE
+            )
+        }
         sessionListener?.onSessionEnded("Error code: $error")
     }
 
@@ -399,7 +550,6 @@ object CastManager : SessionManagerListener<CastSession> {
     private fun scheduleDiscoveryStop() {
         discoveryStopTask?.let { mainHandler.removeCallbacks(it) }
         discoveryStopTask = Runnable {
-            // Stop discovery after a short window to save battery.
             stopDiscovery()
         }
         mainHandler.postDelayed(discoveryStopTask!!, discoveryWindowMs)
